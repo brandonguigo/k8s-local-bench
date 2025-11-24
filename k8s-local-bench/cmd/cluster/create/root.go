@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"k8s-local-bench/config"
 	kindsvc "k8s-local-bench/utils/kind"
@@ -38,6 +40,17 @@ func createCluster(cmd *cobra.Command, args []string) {
 
 	// get cluster name and locate kind config inside CLI config clusters/<name>
 	clusterName, _ := cmd.Flags().GetString("cluster-name")
+	if strings.TrimSpace(clusterName) == "" {
+		fmt.Printf("Enter cluster name (default 'local-bench'): ")
+		reader := bufio.NewReader(os.Stdin)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+		if input == "" {
+			clusterName = "local-bench"
+		} else {
+			clusterName = input
+		}
+	}
 	// check for kind config file (looks inside CLI config directory clusters/<cluster-name>)
 	kindCfg := findKindConfig(clusterName)
 	if kindCfg == "" {
@@ -60,7 +73,9 @@ func createCluster(cmd *cobra.Command, args []string) {
 	}
 
 	// create a kind cluster using provided cluster name
-	if err := kindsvc.Create(clusterName, kindCfg); err != nil {
+	// kubeconfig path will be in CLI config directory under clusters/<name>/kubeconfig
+	kubeconfigPath := filepath.Join(config.CliConfig.Directory, "clusters", clusterName, "kubeconfig")
+	if err := kindsvc.Create(clusterName, kindCfg, kubeconfigPath); err != nil {
 		log.Error().Err(err).Msg("failed creating kind cluster")
 		return
 	}
@@ -86,7 +101,47 @@ func createCluster(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// TODO: make sure the cluster is up and running via kubectl commands
+	// verify cluster readiness: wait up to 3 minutes for pods to be healthy
+	{
+		timeout := 3 * time.Minute
+		deadline := time.Now().Add(timeout)
+		ctxName := "kind-" + clusterName
+		for {
+			out, err := exec.Command("kubectl", "--context", ctxName, "get", "pods", "--all-namespaces", "--no-headers").CombinedOutput()
+			outStr := strings.TrimSpace(string(out))
+			if err != nil {
+				log.Debug().Err(err).Str("output", outStr).Msg("kubectl get pods failed; cluster may not be ready yet")
+			}
+
+			healthy := true
+			if outStr == "" {
+				healthy = false
+			} else {
+				lines := strings.Split(outStr, "\n")
+				for _, l := range lines {
+					f := strings.Fields(l)
+					if len(f) < 4 {
+						continue
+					}
+					status := f[3]
+					if status == "Pending" || strings.Contains(status, "CrashLoopBackOff") || status == "Error" || status == "Failed" {
+						healthy = false
+						break
+					}
+				}
+			}
+
+			if healthy {
+				log.Info().Str("context", ctxName).Msg("cluster pods are healthy")
+				break
+			}
+			if time.Now().After(deadline) {
+				log.Error().Str("context", ctxName).Msg("cluster did not become healthy within timeout")
+				break
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}
 }
 
 // findKindConfig searches the current working directory for common kind config filenames.

@@ -1,10 +1,17 @@
 package destroy
 
 import (
+	"bufio"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 
 	"k8s-local-bench/config"
+	kindsvc "k8s-local-bench/utils/kind"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -29,6 +36,41 @@ func createCluster(cmd *cobra.Command, args []string) {
 	}
 
 	clusterName, _ := cmd.Flags().GetString("cluster-name")
+	// if no cluster name provided, list existing kind clusters and ask user to pick one
+	if strings.TrimSpace(clusterName) == "" {
+		out, err := exec.Command("kind", "get", "clusters").CombinedOutput()
+		outStr := strings.TrimSpace(string(out))
+		if err != nil || outStr == "" {
+			log.Info().Msg("no kind clusters found")
+			return
+		}
+		lines := strings.Split(outStr, "\n")
+		clusters := []string{}
+		for _, l := range lines {
+			l = strings.TrimSpace(l)
+			if l != "" {
+				clusters = append(clusters, l)
+			}
+		}
+		if len(clusters) == 0 {
+			log.Info().Msg("no kind clusters found")
+			return
+		}
+		fmt.Println("Available kind clusters:")
+		for i, c := range clusters {
+			fmt.Printf("%d) %s\n", i+1, c)
+		}
+		fmt.Printf("Select cluster to destroy [1-%d]: ", len(clusters))
+		reader := bufio.NewReader(os.Stdin)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+		choice, err := strconv.Atoi(input)
+		if err != nil || choice < 1 || choice > len(clusters) {
+			log.Info().Msg("invalid selection; aborting")
+			return
+		}
+		clusterName = clusters[choice-1]
+	}
 	// check for kind config file (looks inside CLI config directory clusters/<cluster-name>)
 	kindCfg := findKindConfig(clusterName)
 	if kindCfg == "" {
@@ -37,11 +79,52 @@ func createCluster(cmd *cobra.Command, args []string) {
 		log.Info().Str("path", kindCfg).Msg("found kind config file in current directory")
 	}
 
-	// TODO: delete a kind cluster (name is currently fixed)
+	// delete kind cluster by name
+	if err := kindsvc.Delete(clusterName); err != nil {
+		log.Error().Err(err).Msg("failed deleting kind cluster")
+	} else {
+		log.Info().Str("name", clusterName).Msg("kind cluster deletion invoked")
+	}
 
 	// TODO: stop the cloud-provider-kind command
 
-	// TODO: make sure the cluster is stopped/deleted
+	// attempt to stop any running cloud-provider-kind process (best-effort)
+	if out, err := exec.Command("pkill", "-f", "cloud-provider-kind").CombinedOutput(); err != nil {
+		log.Debug().Err(err).Str("output", string(out)).Msg("pkill for cloud-provider-kind returned error (may be fine if not running)")
+	} else {
+		log.Info().Msg("stopped cloud-provider-kind processes")
+	}
+
+	// make sure the cluster is stopped/deleted: poll `kind get clusters` briefly
+	const maxAttempts = 6
+	deleteSuccess := false
+	for i := 0; i < maxAttempts; i++ {
+		out, err := exec.Command("kind", "get", "clusters").CombinedOutput()
+		outStr := strings.TrimSpace(string(out))
+		if err != nil {
+			log.Debug().Err(err).Str("output", outStr).Msg("failed to list kind clusters")
+		}
+		if !strings.Contains(outStr, clusterName) {
+			log.Info().Str("name", clusterName).Msg("cluster confirmed removed")
+			deleteSuccess = true
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	if !deleteSuccess {
+		log.Warn().Str("name", clusterName).Msg("cluster still present after deletion attempts; manual cleanup may be needed")
+		return
+	}
+
+	// delete the kubeconfig file under CLI config directory clusters/<name>/kubeconfig if cluster deletion was successful
+	kubeconfigPath := filepath.Join(config.CliConfig.Directory, "clusters", clusterName, "kubeconfig")
+
+	if err := os.Remove(kubeconfigPath); err != nil {
+		log.Warn().Err(err).Str("path", kubeconfigPath).Msg("failed to delete kubeconfig file")
+	} else {
+		log.Info().Str("path", kubeconfigPath).Msg("deleted kubeconfig file")
+	}
 }
 
 // findKindConfig searches the current working directory for common kind config filenames.

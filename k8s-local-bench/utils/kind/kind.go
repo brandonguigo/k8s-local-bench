@@ -47,7 +47,7 @@ func ensureCloudProviderKindInstalled() error {
 
 // Create creates a kind cluster with the provided name. If configPath is non-empty
 // it will be passed to `kind create cluster --config`.
-func Create(name string, configPath string) error {
+func Create(name string, configPath string, kubeconfigPath string) error {
 	if !isInstalled("kind") {
 		return fmt.Errorf("kind not installed")
 	}
@@ -60,7 +60,7 @@ func Create(name string, configPath string) error {
 		return err
 	}
 
-	args := []string{"create", "cluster", "--name", name}
+	args := []string{"create", "cluster", "--name", name, "--kubeconfig", kubeconfigPath}
 	if configPath != "" {
 		args = append(args, "--config", configPath)
 	}
@@ -100,12 +100,41 @@ func StartLoadBalancer(clusterName string, background bool) error {
 	}
 
 	args := []string{}
+
+	// determine whether we need sudo
+	needSudo := os.Geteuid() != 0
+	if needSudo && !isInstalled("sudo") {
+		return fmt.Errorf("sudo required but not installed")
+	}
+
 	if !background {
+		if needSudo {
+			// run interactively so user can enter their sudo password
+			cmd := exec.Command("sudo", append([]string{"cloud-provider-kind"}, args...)...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("cloud-provider-kind failed: %w", err)
+			}
+			return nil
+		}
 		out, err := runCmd("cloud-provider-kind", args...)
 		if err != nil {
 			return fmt.Errorf("cloud-provider-kind failed: %w; output: %s", err, out)
 		}
 		return nil
+	}
+
+	// background: if sudo is required, first validate sudo credentials interactively
+	if needSudo {
+		vcmd := exec.Command("sudo", "-v")
+		vcmd.Stdout = os.Stdout
+		vcmd.Stderr = os.Stderr
+		vcmd.Stdin = os.Stdin
+		if err := vcmd.Run(); err != nil {
+			return fmt.Errorf("sudo validation failed: %w", err)
+		}
 	}
 
 	// background: start detached with logs redirected to a temp file
@@ -115,7 +144,12 @@ func StartLoadBalancer(clusterName string, background bool) error {
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
 
-	cmd := exec.Command("cloud-provider-kind", args...)
+	var cmd *exec.Cmd
+	if needSudo {
+		cmd = exec.Command("sudo", append([]string{"cloud-provider-kind"}, args...)...)
+	} else {
+		cmd = exec.Command("cloud-provider-kind", args...)
+	}
 	cmd.Stdout = f
 	cmd.Stderr = f
 	cmd.Stdin = nil
