@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"k8s-local-bench/config"
+	gitutil "k8s-local-bench/utils/git"
 	kindsvc "k8s-local-bench/utils/kind"
 	kindcfg "k8s-local-bench/utils/kind/config"
 
@@ -54,10 +55,41 @@ func createCluster(cmd *cobra.Command, args []string) {
 	}
 	// check for kind config file (looks inside CLI config directory clusters/<cluster-name>)
 	kindCfgPath := findKindConfig(clusterName)
-	var kindCfg kindcfg.KindCluster
+	var kindCfg *kindcfg.KindCluster
 
 	if kindCfgPath == "" {
-		log.Info().Msg("no kind config file found in current directory; proceeding without one")
+		log.Info().Msg("no kind config file found in current directory; creating default kind config")
+
+		// create default kind config under CLI config directory: clusters/<name>/kind-config.yaml
+		base := config.CliConfig.Directory
+		var err error
+		if base == "" {
+			base, err = os.Getwd()
+			if err != nil {
+				log.Error().Err(err).Msg("failed to determine working directory for default kind config")
+			}
+		}
+		clusterDir := filepath.Join(base, "clusters", clusterName)
+		if err := os.MkdirAll(clusterDir, 0o755); err != nil {
+			log.Error().Err(err).Str("path", clusterDir).Msg("failed to create cluster config directory")
+		} else {
+			defaultPath := filepath.Join(clusterDir, "kind-config.yaml")
+			// basic default: single control-plane node
+			def := &kindcfg.KindCluster{
+				Kind:       "Cluster",
+				APIVersion: "kind.x-k8s.io/v1alpha4",
+				Nodes: []kindcfg.KindNode{{
+					Role: "control-plane",
+				}},
+			}
+			if err := kindcfg.SaveKindConfig(defaultPath, def); err != nil {
+				log.Error().Err(err).Str("path", defaultPath).Msg("failed to write default kind config")
+			} else {
+				kindCfgPath = defaultPath
+				kindCfg = def
+				log.Info().Str("path", kindCfgPath).Msg("wrote default kind config")
+			}
+		}
 	} else {
 		log.Info().Str("path", kindCfgPath).Msg("found kind config file in current directory")
 
@@ -65,7 +97,7 @@ func createCluster(cmd *cobra.Command, args []string) {
 		if cfg, err := kindcfg.LoadKindConfig(kindCfgPath); err != nil {
 			log.Error().Err(err).Str("path", kindCfgPath).Msg("failed to load kind config")
 		} else {
-			kindCfg = *cfg
+			kindCfg = cfg
 			log.Info().Str("kind", kindCfg.Kind).Str("apiVersion", kindCfg.APIVersion).Int("nodes", len(kindCfg.Nodes)).Msg("loaded kind config")
 			for i, n := range cfg.Nodes {
 				log.Debug().Int("nodeIndex", i).Str("role", n.Role).Int("extraMounts", len(n.ExtraMounts)).Msg("node details")
@@ -76,7 +108,28 @@ func createCluster(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// TODO: create kindConfig if not found with default settings
+	// create local repository for ArgoCD to use
+	{
+		base := config.CliConfig.Directory
+		var err error
+		if base == "" {
+			base, err = os.Getwd()
+			if err != nil {
+				log.Error().Err(err).Msg("failed to determine working directory for local-argo repo")
+				base = ""
+			}
+		}
+		if base != "" {
+			repoPath := filepath.Join(base, "local-argo")
+			if err := gitutil.InitializeGitRepo(repoPath); err != nil {
+				log.Error().Err(err).Str("path", repoPath).Msg("failed to create local-argo git repo")
+			} else {
+				log.Info().Str("path", repoPath).Msg("created local-argo git repo")
+			}
+		} else {
+			log.Debug().Msg("skipping local-argo repo creation; no base config directory available")
+		}
+	}
 
 	// TODO: update kindConfig to include the mount of the ArgoCD local repo
 
@@ -169,8 +222,6 @@ func createCluster(cmd *cobra.Command, args []string) {
 	}
 
 	// TODO: deploy ArgoCD via Helm chart into the cluster
-
-	// TODO: create local repository for ArgoCD to use
 
 	// TODO: install local-stack ArgoCD app into the cluster
 
