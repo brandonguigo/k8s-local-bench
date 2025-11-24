@@ -1,14 +1,10 @@
-package create
+package destroy
 
 import (
-	"bufio"
-	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"k8s-local-bench/config"
-	kindsvc "k8s-local-bench/utils/kind"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -17,19 +13,16 @@ import (
 // NewCommand creates the cluster command
 func NewCommand() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "create",
-		Short: "create a local k8s cluster",
+		Use:   "destroy",
+		Short: "destroy a local k8s cluster",
 		Run:   createCluster,
 	}
-	// flags
-	cmd.Flags().StringP("kind-config", "k", "", "path to kind config file (searched in current directory if unspecified)")
-	cmd.Flags().BoolP("yes", "y", false, "don't ask for confirmation; assume yes")
 	// add subcommands here
 	return cmd
 }
 
 func createCluster(cmd *cobra.Command, args []string) {
-	log.Info().Msg("Creating local k8s cluster...")
+	log.Info().Msg("Deleting local k8s cluster...")
 	// honor CLI debug config if set
 	if config.CliConfig.Debug {
 		log.Debug().Bool("debug", true).Msg("debug enabled")
@@ -53,30 +46,11 @@ func createCluster(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// ask for confirmation unless user passed --yes
-	yes, _ := cmd.Flags().GetBool("yes")
-	if !yes {
-		fmt.Printf("Proceed to create kind cluster '%s'? (y/N): ", "local-bench")
-		reader := bufio.NewReader(os.Stdin)
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-		if !(strings.EqualFold(input, "y") || strings.EqualFold(input, "yes")) {
-			log.Info().Msg("aborting cluster creation")
-			return
-		}
-	}
+	// TODO: delete a kind cluster (name is currently fixed)
 
-	// create a kind cluster (name is currently fixed)
-	clusterName := "local-bench"
-	if err := kindsvc.Create(clusterName, kindCfg); err != nil {
-		log.Error().Err(err).Msg("failed creating kind cluster")
-		return
-	}
-	log.Info().Str("name", clusterName).Msg("kind cluster creation invoked")
+	// TODO: stop the cloud-provider-kind command
 
-	// TODO: run the cloud-provider-kind command to have loadbalancer support in a separate thread
-
-	// TODO: make sure the cluster is up and running via kubectl commands
+	// TODO: make sure the cluster is stopped/deleted
 }
 
 // findKindConfig searches the current working directory for common kind config filenames.
