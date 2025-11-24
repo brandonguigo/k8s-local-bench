@@ -46,3 +46,26 @@ func InitializeGitRepo(path string) error {
 
 	return nil
 }
+
+// CommitAll stages all changes under the given path and creates a commit with the
+// provided message. The path must be a git repository working tree.
+func CommitAll(path, message string) error {
+	// git add --all
+	cmd := exec.Command("git", "add", "--all")
+	cmd.Dir = path
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git add failed: %v: %s", err, string(out))
+	}
+
+	// git commit -m <message>
+	cmd = exec.Command("git", "commit", "-m", message)
+	cmd.Dir = path
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		// If there's nothing to commit, git returns exit code 1 with message on stdout/stderr.
+		return fmt.Errorf("git commit failed: %v: %s", err, string(out))
+	}
+
+	return nil
+}
