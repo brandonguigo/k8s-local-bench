@@ -175,19 +175,20 @@ func createCluster(cmd *cobra.Command, args []string) {
 			} else {
 				log.Info().Str("path", localStackPath).Msg("downloaded local-stack helm chart from GitHub into local-argo repo")
 			}
+
+			// commit local-argo repo changes
+			if base != "" {
+				repoPath := filepath.Join(base, "local-argo")
+				if err := gitutil.CommitAll(repoPath, "Update local-argo repo with local-stack helm chart"); err != nil {
+					log.Error().Err(err).Str("path", repoPath).Msg("failed to commit changes to local-argo git repo")
+				} else {
+					log.Info().Str("path", repoPath).Msg("committed changes to local-argo git repo")
+				}
+			}
 		} else {
 			log.Info().Str("path", localStackPath).Msg("local-stack helm chart already exists; skipping download")
 		}
 
-		// commit local-argo repo changes
-		if base != "" {
-			repoPath := filepath.Join(base, "local-argo")
-			if err := gitutil.CommitAll(repoPath, "Update local-argo repo with local-stack helm chart"); err != nil {
-				log.Error().Err(err).Str("path", repoPath).Msg("failed to commit changes to local-argo git repo")
-			} else {
-				log.Info().Str("path", repoPath).Msg("committed changes to local-argo git repo")
-			}
-		}
 	} else {
 		log.Info().Msg("Argocd setup disabled; skipping ArgoCD related tasks")
 	}

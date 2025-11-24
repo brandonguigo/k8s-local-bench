@@ -38,10 +38,19 @@ func LoadKindConfig(path string) (*KindCluster, error) {
 
 func AddExtraMount(cfg *KindCluster, host, container string) {
 	for i := range cfg.Nodes {
-		cfg.Nodes[i].ExtraMounts = append(cfg.Nodes[i].ExtraMounts, ExtraMount{
-			HostPath:      host,
-			ContainerPath: container,
-		})
+		exists := false
+		for _, m := range cfg.Nodes[i].ExtraMounts {
+			if m.HostPath == host && m.ContainerPath == container {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			cfg.Nodes[i].ExtraMounts = append(cfg.Nodes[i].ExtraMounts, ExtraMount{
+				HostPath:      host,
+				ContainerPath: container,
+			})
+		}
 	}
 }
 
