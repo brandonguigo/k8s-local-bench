@@ -12,6 +12,7 @@ import (
 	"k8s-local-bench/config"
 	argocdsvc "k8s-local-bench/utils/argocd"
 	gitutil "k8s-local-bench/utils/git"
+	"k8s-local-bench/utils/github"
 	kindsvc "k8s-local-bench/utils/kind"
 	kindcfg "k8s-local-bench/utils/kind/config"
 
@@ -158,7 +159,26 @@ func createCluster(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		// TODO: download local-stack template from GitHub if not present into ArgoCD directory
+		// download local-stack directory from GitHub if not present into ArgoCD directory
+		localStackHelmChartOwner := "brandonguigo"
+		localStackHelmChartRepo := "k8s-local-bench"
+		localStackHelmChartRef := "main"
+		localStackHelmChartTemplatePath := "charts/local-stack"
+		localStackPath := filepath.Join(base, "local-argo", "charts", "local-stack")
+		log.Debug().Str("path", localStackPath).Msgf("checking for local-stack helm chart in local-argo repo")
+		if _, err := os.Stat(localStackPath); os.IsNotExist(err) {
+			log.Info().Str("path", localStackPath).Msgf("local-stack helm chart not found; downloading from GitHub repo %s/%s (ref: %s, path: %s)", localStackHelmChartOwner, localStackHelmChartRepo, localStackHelmChartRef, localStackHelmChartTemplatePath)
+			err := github.DownloadRepoPath(cmd.Context(), localStackHelmChartOwner, localStackHelmChartRepo, localStackHelmChartRef, localStackHelmChartTemplatePath, localStackPath, "")
+			if err != nil {
+				log.Error().Err(err).Str("path", localStackPath).Msg("failed to download local-stack helm chart from GitHub")
+			} else {
+				log.Info().Str("path", localStackPath).Msg("downloaded local-stack helm chart from GitHub into local-argo repo")
+			}
+		} else {
+			log.Info().Str("path", localStackPath).Msg("local-stack helm chart already exists; skipping download")
+		}
+
+		//TODO: commit local-argo repo changes
 	} else {
 		log.Info().Msg("Argocd setup disabled; skipping ArgoCD related tasks")
 	}
@@ -264,7 +284,7 @@ func createCluster(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// TODO: install local-stack ArgoCD app into the cluster
+	// TODO: install directory/local-argo/bootstrap/argo-bootstrap-*.yaml into the cluster (bootstrap argo repo and apps)
 
 	log.Info().Msg("local k8s cluster creation process completed")
 }
