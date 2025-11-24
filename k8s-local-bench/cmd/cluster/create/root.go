@@ -29,6 +29,7 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().BoolP("yes", "y", false, "don't ask for confirmation; assume yes")
 	cmd.Flags().Bool("start-lb", true, "start local load balancer (cloud-provider-kind)")
 	cmd.Flags().Bool("lb-foreground", false, "run load balancer in foreground (blocking)")
+	cmd.Flags().Bool("disable-argocd", false, "don't perform ArgoCD related setup")
 	// add subcommands here
 	return cmd
 }
@@ -39,6 +40,8 @@ func createCluster(cmd *cobra.Command, args []string) {
 	if config.CliConfig.Debug {
 		log.Debug().Bool("debug", true).Msg("debug enabled")
 	}
+
+	disableArgoCD, _ := cmd.Flags().GetBool("disable-argocd")
 
 	// get cluster name and locate kind config inside CLI config clusters/<name>
 	clusterName, _ := cmd.Flags().GetString("cluster-name")
@@ -108,8 +111,8 @@ func createCluster(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// create local repository for ArgoCD to use
-	{
+	// create local repository for ArgoCD to use (skip if disabled)
+	if !disableArgoCD {
 		base := config.CliConfig.Directory
 		var err error
 		if base == "" {
@@ -129,11 +132,11 @@ func createCluster(cmd *cobra.Command, args []string) {
 		} else {
 			log.Debug().Msg("skipping local-argo repo creation; no base config directory available")
 		}
+	} else {
+		log.Info().Msg("Argocd setup disabled; skipping ArgoCD related tasks")
 	}
 
 	// TODO: update kindConfig to include the mount of the ArgoCD local repo
-
-	// TODO: create the argocd directory that will contain the local-stack chart
 
 	// TODO: download local-stack template from GitHub if not present into ArgoCD directory
 
