@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"k8s-local-bench/config"
+	argocdsvc "k8s-local-bench/utils/argocd"
 	gitutil "k8s-local-bench/utils/git"
 	kindsvc "k8s-local-bench/utils/kind"
 	kindcfg "k8s-local-bench/utils/kind/config"
@@ -136,7 +137,7 @@ func createCluster(cmd *cobra.Command, args []string) {
 		// update kindConfig to include the mount of the ArgoCD local repo
 		if base != "" && kindCfgPath != "" {
 			hostPath := filepath.Join(base, "local-argo")
-			containerPath := "/local-argo"
+			containerPath := "/mnt/local-argo.git"
 			// ensure kindCfg is loaded
 			if kindCfg == nil {
 				if cfg, err := kindcfg.LoadKindConfig(kindCfgPath); err != nil {
@@ -246,16 +247,22 @@ func createCluster(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// TODO: deploy ArgoCD via Helm chart into the cluster with this config
-	// repoServer:
-	// 	volumes:
-	// 		- name: local-repo
-	// 		hostPath:
-	// 			path: /mnt/local-repo.git
-	// 			type: Directory
-	// 	volumeMounts:
-	// 		- name: local-repo
-	// 		mountPath: /mnt/local-repo.git
+	// deploy ArgoCD via Helm chart into the cluster with this config
+	if !disableArgoCD {
+		// build mounts for ArgoCD repoServer from CLI config directory
+		mounts := []argocdsvc.RepoMount{{
+			Name:      "local-argo",
+			HostPath:  "/mnt/local-argo.git",
+			MountPath: "/mnt/local-argo.git",
+		}}
+
+		out, err := argocdsvc.InstallArgoCD(mounts)
+		if err != nil {
+			log.Error().Err(err).Str("output", out).Msg("failed to install argocd via helm sdk")
+		} else {
+			log.Info().Str("output", out).Msg("argocd installed")
+		}
+	}
 
 	// TODO: install local-stack ArgoCD app into the cluster
 
