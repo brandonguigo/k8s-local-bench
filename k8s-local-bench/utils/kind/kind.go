@@ -2,8 +2,11 @@ package kind
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/rs/zerolog/log"
 )
@@ -21,6 +24,27 @@ func runCmd(name string, args ...string) (string, error) {
 	return string(out), err
 }
 
+// ensureCloudProviderKindInstalled ensures the `cloud-provider-kind` binary exists.
+// If missing and `go` is available, it will attempt `go install sigs.k8s.io/cloud-provider-kind@latest`.
+func ensureCloudProviderKindInstalled() error {
+	if isInstalled("cloud-provider-kind") {
+		return nil
+	}
+	if !isInstalled("go") {
+		return fmt.Errorf("go not installed; cannot install cloud-provider-kind")
+	}
+
+	out, err := runCmd("go", "install", "sigs.k8s.io/cloud-provider-kind@latest")
+	if err != nil {
+		return fmt.Errorf("failed to install cloud-provider-kind: %w; output: %s", err, out)
+	}
+	if !isInstalled("cloud-provider-kind") {
+		return fmt.Errorf("cloud-provider-kind not found in PATH after install; output: %s", out)
+	}
+	log.Info().Msg("cloud-provider-kind installed")
+	return nil
+}
+
 // Create creates a kind cluster with the provided name. If configPath is non-empty
 // it will be passed to `kind create cluster --config`.
 func Create(name string, configPath string) error {
@@ -29,6 +53,11 @@ func Create(name string, configPath string) error {
 	}
 	if !isInstalled("docker") {
 		return fmt.Errorf("docker not installed")
+	}
+
+	// ensure cloud-provider-kind is available (will attempt to install with `go install`)
+	if err := ensureCloudProviderKindInstalled(); err != nil {
+		return err
 	}
 
 	args := []string{"create", "cluster", "--name", name}
@@ -58,5 +87,48 @@ func Delete(name string) error {
 		return fmt.Errorf("failed to delete kind cluster: %w; output: %s", err, out)
 	}
 	log.Info().Str("name", name).Msg("kind cluster deleted")
+	return nil
+}
+
+// StartLoadBalancer starts the cloud-provider-kind process for the given cluster.
+// If background==true the process is started detached and logs are written to
+// a temp file; the function returns immediately while the process continues
+// running after the CLI exits.
+func StartLoadBalancer(clusterName string, background bool) error {
+	if err := ensureCloudProviderKindInstalled(); err != nil {
+		return err
+	}
+
+	args := []string{}
+	if !background {
+		out, err := runCmd("cloud-provider-kind", args...)
+		if err != nil {
+			return fmt.Errorf("cloud-provider-kind failed: %w; output: %s", err, out)
+		}
+		return nil
+	}
+
+	// background: start detached with logs redirected to a temp file
+	logPath := filepath.Join(os.TempDir(), fmt.Sprintf("cloud-provider-kind-%s.log", clusterName))
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+
+	cmd := exec.Command("cloud-provider-kind", args...)
+	cmd.Stdout = f
+	cmd.Stderr = f
+	cmd.Stdin = nil
+	// detach from parent process (Unix)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	if err := cmd.Start(); err != nil {
+		f.Close()
+		return fmt.Errorf("failed to start cloud-provider-kind: %w", err)
+	}
+	// we intentionally do not wait; process should keep running after exit
+	log.Info().Str("log", logPath).Int("pid", cmd.Process.Pid).Msg("cloud-provider-kind started in background")
+	// close our file handle; child keeps file descriptor
+	_ = f.Close()
 	return nil
 }

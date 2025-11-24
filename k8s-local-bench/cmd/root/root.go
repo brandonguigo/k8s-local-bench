@@ -7,6 +7,7 @@ import (
 	"errors"
 	clusterCmd "k8s-local-bench/cmd/cluster"
 	"k8s-local-bench/config"
+	"k8s-local-bench/utils/viperutils"
 	"os"
 	"strings"
 
@@ -41,6 +42,8 @@ func Execute() {
 
 func init() {
 	// Here you will define your flags and configuration settings.
+	rootCmd.PersistentFlags().StringP("directory", "d", ".", "Directory where configurations and data are stored")
+	viperutils.MapFlagToEnv(rootCmd, "directory", "K8S_LOCAL_BENCH_DIRECTORY", "directory")
 	rootCmd.PersistentFlags().StringVarP(&CfgFile, "config", "c", "", "config file (default is /.k8s-local-bench.yaml)")
 
 	rootCmd.AddCommand(clusterCmd.NewCommand())

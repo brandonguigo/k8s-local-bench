@@ -24,6 +24,8 @@ func NewCommand() *cobra.Command {
 	// flags
 	cmd.Flags().StringP("kind-config", "k", "", "path to kind config file (searched in current directory if unspecified)")
 	cmd.Flags().BoolP("yes", "y", false, "don't ask for confirmation; assume yes")
+	cmd.Flags().Bool("start-lb", true, "start local load balancer (cloud-provider-kind)")
+	cmd.Flags().Bool("lb-foreground", false, "run load balancer in foreground (blocking)")
 	// add subcommands here
 	return cmd
 }
@@ -73,8 +75,26 @@ func createCluster(cmd *cobra.Command, args []string) {
 		return
 	}
 	log.Info().Str("name", clusterName).Msg("kind cluster creation invoked")
-
-	// TODO: run the cloud-provider-kind command to have loadbalancer support in a separate thread
+	// start load balancer if requested (defaults: start and run in background)
+	startLB, _ := cmd.Flags().GetBool("start-lb")
+	lbFg, _ := cmd.Flags().GetBool("lb-foreground")
+	if startLB {
+		if !lbFg {
+			// background
+			if err := kindsvc.StartLoadBalancer(clusterName, true); err != nil {
+				log.Error().Err(err).Msg("failed to start load balancer in background")
+			} else {
+				log.Info().Msg("load balancer started in background")
+			}
+		} else {
+			// foreground: run and wait (this will block until the process exits)
+			if err := kindsvc.StartLoadBalancer(clusterName, false); err != nil {
+				log.Error().Err(err).Msg("failed to run load balancer (foreground)")
+			} else {
+				log.Info().Msg("load balancer run completed")
+			}
+		}
+	}
 
 	// TODO: make sure the cluster is up and running via kubectl commands
 }
@@ -82,19 +102,23 @@ func createCluster(cmd *cobra.Command, args []string) {
 // findKindConfig searches the current working directory for common kind config filenames.
 // Returns the first match (absolute path) or empty string if none found.
 func findKindConfig() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return ""
+	base := config.CliConfig.Directory
+	var err error
+	if base == "" {
+		base, err = os.Getwd()
+		if err != nil {
+			return ""
+		}
 	}
-	candidates := []string{"kind-config.yaml", "kind-config.yml", "kind.yaml", "kind.yml"}
+	candidates := []string{"kind-config.yaml", "kind-config.yml",}
 	for _, name := range candidates {
-		p := filepath.Join(cwd, name)
+		p := filepath.Join(base, name)
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}
 	}
 	// try broader glob for files starting with "kind"
-	matches, _ := filepath.Glob(filepath.Join(cwd, "kind*.y*ml"))
+	matches, _ := filepath.Glob(filepath.Join(base, "kind*.y*ml"))
 	if len(matches) > 0 {
 		return matches[0]
 	}
