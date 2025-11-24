@@ -132,13 +132,35 @@ func createCluster(cmd *cobra.Command, args []string) {
 		} else {
 			log.Debug().Msg("skipping local-argo repo creation; no base config directory available")
 		}
+
+		// update kindConfig to include the mount of the ArgoCD local repo
+		if base != "" && kindCfgPath != "" {
+			hostPath := filepath.Join(base, "local-argo")
+			containerPath := "/local-argo"
+			// ensure kindCfg is loaded
+			if kindCfg == nil {
+				if cfg, err := kindcfg.LoadKindConfig(kindCfgPath); err != nil {
+					log.Debug().Err(err).Str("path", kindCfgPath).Msg("failed to reload kind config before adding mount")
+				} else {
+					kindCfg = cfg
+				}
+			}
+			if kindCfg != nil {
+				kindcfg.AddExtraMount(kindCfg, hostPath, containerPath)
+				if err := kindcfg.SaveKindConfig(kindCfgPath, kindCfg); err != nil {
+					log.Error().Err(err).Str("path", kindCfgPath).Msg("failed to write updated kind config with local-argo mount")
+				} else {
+					log.Info().Str("hostPath", hostPath).Str("containerPath", containerPath).Msg("added local-argo mount to kind config")
+				}
+			} else {
+				log.Debug().Msg("no kind config available to patch with local-argo mount")
+			}
+		}
+
+		// TODO: download local-stack template from GitHub if not present into ArgoCD directory
 	} else {
 		log.Info().Msg("Argocd setup disabled; skipping ArgoCD related tasks")
 	}
-
-	// TODO: update kindConfig to include the mount of the ArgoCD local repo
-
-	// TODO: download local-stack template from GitHub if not present into ArgoCD directory
 
 	// ask for confirmation unless user passed --yes
 	yes, _ := cmd.Flags().GetBool("yes")
@@ -224,7 +246,16 @@ func createCluster(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// TODO: deploy ArgoCD via Helm chart into the cluster
+	// TODO: deploy ArgoCD via Helm chart into the cluster with this config
+	// repoServer:
+	// 	volumes:
+	// 		- name: local-repo
+	// 		hostPath:
+	// 			path: /mnt/local-repo.git
+	// 			type: Directory
+	// 	volumeMounts:
+	// 		- name: local-repo
+	// 		mountPath: /mnt/local-repo.git
 
 	// TODO: install local-stack ArgoCD app into the cluster
 
