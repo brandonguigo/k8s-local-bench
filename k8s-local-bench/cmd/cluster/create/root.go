@@ -126,7 +126,7 @@ func createCluster(cmd *cobra.Command, args []string) {
 			}
 		}
 		if base != "" {
-			repoPath := filepath.Join(base, "local-argo")
+			repoPath := filepath.Join(base, "local-argo", "local-argo.git")
 			if err := gitutil.InitializeGitRepo(repoPath); err != nil {
 				log.Error().Err(err).Str("path", repoPath).Msg("failed to create local-argo git repo")
 			} else {
@@ -139,7 +139,7 @@ func createCluster(cmd *cobra.Command, args []string) {
 		// update kindConfig to include the mount of the ArgoCD local repo
 		if base != "" && kindCfgPath != "" {
 			hostPath := filepath.Join(base, "local-argo")
-			containerPath := "/mnt/local-argo.git"
+			containerPath := "/mnt/local-argo"
 			// ensure kindCfg is loaded
 			if kindCfg == nil {
 				if cfg, err := kindcfg.LoadKindConfig(kindCfgPath); err != nil {
@@ -282,8 +282,8 @@ func createCluster(cmd *cobra.Command, args []string) {
 		// build mounts for ArgoCD repoServer from CLI config directory
 		mounts := []argocdsvc.RepoMount{{
 			Name:      "local-argo",
-			HostPath:  "/mnt/local-argo.git",
-			MountPath: "/mnt/local-argo.git",
+			HostPath:  "/mnt/local-argo",
+			MountPath: "/mnt/local-argo",
 		}}
 
 		// pass the current cluster kubeconfig path to ArgoCD install
