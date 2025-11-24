@@ -276,7 +276,8 @@ func createCluster(cmd *cobra.Command, args []string) {
 			MountPath: "/mnt/local-argo.git",
 		}}
 
-		out, err := argocdsvc.InstallArgoCD(mounts)
+		// pass the current cluster kubeconfig path to ArgoCD install
+		out, err := argocdsvc.InstallOrUpgradeArgoCD(mounts, kubeconfigPath)
 		if err != nil {
 			log.Error().Err(err).Str("output", out).Msg("failed to install argocd via helm sdk")
 		} else {

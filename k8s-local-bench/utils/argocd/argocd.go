@@ -19,14 +19,10 @@ type RepoMount struct {
 	MountPath string
 }
 
-// InstallArgoCD installs or upgrades ArgoCD using the Helm SDK (upgrade --install).
-// - release: Helm release name
-// - chart: chart reference (local path or chart name)
-// - namespace: target namespace
-// - repoURL: optional chart repository URL (when non-empty the chart will be located from the repo)
+// InstallOrUpgradeArgoCD installs or upgrades ArgoCD using the Helm SDK (upgrade --install).
 // - mounts: list of RepoMount to add to repoServer.volumes and repoServer.volumeMounts
-// - extraArgs: unused by SDK currently but kept for compatibility
-func InstallArgoCD(mounts []RepoMount) (string, error) {
+// - kubeconfig: optional path to kubeconfig file (when non-empty the helm REST client will use it)
+func InstallOrUpgradeArgoCD(mounts []RepoMount, kubeconfig string) (string, error) {
 	// use official argo-cd chart from Argo Helm
 	release := "argocd"
 	namespace := "argocd"
@@ -57,6 +53,9 @@ func InstallArgoCD(mounts []RepoMount) (string, error) {
 
 	// helm SDK config
 	settings := cli.New()
+	if kubeconfig != "" {
+		settings.KubeConfig = kubeconfig
+	}
 	var cfg action.Configuration
 	if err := cfg.Init(settings.RESTClientGetter(), namespace, os.Getenv("HELM_DRIVER"), stdlog.Printf); err != nil {
 		return "", fmt.Errorf("failed to init helm configuration: %w", err)
