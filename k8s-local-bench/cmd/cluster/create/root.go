@@ -171,7 +171,7 @@ func createCluster(cmd *cobra.Command, args []string) {
 			log.Info().Str("path", localStackPath).Msgf("local-stack helm chart not found; downloading from GitHub repo %s/%s (ref: %s, path: %s)", localStackHelmChartOwner, localStackHelmChartRepo, localStackHelmChartRef, localStackHelmChartTemplatePath)
 			err := github.DownloadRepoPath(cmd.Context(), localStackHelmChartOwner, localStackHelmChartRepo, localStackHelmChartRef, localStackHelmChartTemplatePath, localStackPath, "")
 			if err != nil {
-				log.Error().Err(err).Str("path", localStackPath).Msg("failed to download local-stack helm chart from GitHub")
+				log.Fatal().Err(err).Str("path", localStackPath).Msg("failed to download local-stack helm chart from GitHub")
 			} else {
 				log.Info().Str("path", localStackPath).Msg("downloaded local-stack helm chart from GitHub into local-argo repo")
 			}
