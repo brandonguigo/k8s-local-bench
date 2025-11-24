@@ -16,8 +16,6 @@ func NewCommand() *cobra.Command {
 		Short: "control local k8s clusters",
 	}
 
-	// flag to allow specifying a kind config file; if empty we'll look in CWD
-	cmd.PersistentFlags().StringP("kind-config", "k", "", "path to kind config file (searched in current directory if unspecified)")
 	// add subcommands here
 	cmd.AddCommand(create.NewCommand())
 	return cmd

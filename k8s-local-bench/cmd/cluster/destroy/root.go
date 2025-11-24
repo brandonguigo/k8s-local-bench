@@ -28,22 +28,12 @@ func createCluster(cmd *cobra.Command, args []string) {
 		log.Debug().Bool("debug", true).Msg("debug enabled")
 	}
 
-	// check for kind config file
-	kindCfg, _ := cmd.Flags().GetString("kind-config")
+	// check for kind config file (always look in working directory)
+	kindCfg := findKindConfig()
 	if kindCfg == "" {
-		kindCfg = findKindConfig()
-		if kindCfg == "" {
-			log.Info().Msg("no kind config file found in current directory; proceeding without one")
-		} else {
-			log.Info().Str("path", kindCfg).Msg("found kind config file in current directory")
-		}
+		log.Info().Msg("no kind config file found in current directory; proceeding without one")
 	} else {
-		if _, err := os.Stat(kindCfg); err != nil {
-			log.Warn().Err(err).Str("path", kindCfg).Msg("provided kind config not found; ignoring")
-			kindCfg = ""
-		} else {
-			log.Info().Str("path", kindCfg).Msg("using kind config from flag")
-		}
+		log.Info().Str("path", kindCfg).Msg("found kind config file in current directory")
 	}
 
 	// TODO: delete a kind cluster (name is currently fixed)

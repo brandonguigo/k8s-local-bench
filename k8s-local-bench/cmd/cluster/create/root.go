@@ -22,7 +22,6 @@ func NewCommand() *cobra.Command {
 		Run:   createCluster,
 	}
 	// flags
-	cmd.Flags().StringP("kind-config", "k", "", "path to kind config file (searched in current directory if unspecified)")
 	cmd.Flags().BoolP("yes", "y", false, "don't ask for confirmation; assume yes")
 	cmd.Flags().Bool("start-lb", true, "start local load balancer (cloud-provider-kind)")
 	cmd.Flags().Bool("lb-foreground", false, "run load balancer in foreground (blocking)")
@@ -37,22 +36,12 @@ func createCluster(cmd *cobra.Command, args []string) {
 		log.Debug().Bool("debug", true).Msg("debug enabled")
 	}
 
-	// check for kind config file
-	kindCfg, _ := cmd.Flags().GetString("kind-config")
+	// check for kind config file (always look in working directory)
+	kindCfg := findKindConfig()
 	if kindCfg == "" {
-		kindCfg = findKindConfig()
-		if kindCfg == "" {
-			log.Info().Msg("no kind config file found in current directory; proceeding without one")
-		} else {
-			log.Info().Str("path", kindCfg).Msg("found kind config file in current directory")
-		}
+		log.Info().Msg("no kind config file found in current directory; proceeding without one")
 	} else {
-		if _, err := os.Stat(kindCfg); err != nil {
-			log.Warn().Err(err).Str("path", kindCfg).Msg("provided kind config not found; ignoring")
-			kindCfg = ""
-		} else {
-			log.Info().Str("path", kindCfg).Msg("using kind config from flag")
-		}
+		log.Info().Str("path", kindCfg).Msg("found kind config file in current directory")
 	}
 
 	// ask for confirmation unless user passed --yes
@@ -110,7 +99,7 @@ func findKindConfig() string {
 			return ""
 		}
 	}
-	candidates := []string{"kind-config.yaml", "kind-config.yml",}
+	candidates := []string{"kind-config.yaml", "kind-config.yml"}
 	for _, name := range candidates {
 		p := filepath.Join(base, name)
 		if _, err := os.Stat(p); err == nil {
