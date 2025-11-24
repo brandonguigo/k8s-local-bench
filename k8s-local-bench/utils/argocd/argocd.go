@@ -27,7 +27,7 @@ func InstallOrUpgradeArgoCD(mounts []RepoMount, kubeconfig string) (string, erro
 	release := "argocd"
 	namespace := "argocd"
 	repoURL := "https://argoproj.github.io/argo-helm"
-	chart := "argo/argo-cd"
+	chart := "argo-cd"
 	// prepare values map
 	values := map[string]interface{}{}
 	repoServer := map[string]interface{}{}

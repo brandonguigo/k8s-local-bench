@@ -289,7 +289,7 @@ func createCluster(cmd *cobra.Command, args []string) {
 		// pass the current cluster kubeconfig path to ArgoCD install
 		out, err := argocdsvc.InstallOrUpgradeArgoCD(mounts, kubeconfigPath)
 		if err != nil {
-			log.Error().Err(err).Str("output", out).Msg("failed to install argocd via helm sdk")
+			log.Fatal().Err(err).Str("output", out).Msg("failed to install argocd via helm sdk")
 		} else {
 			log.Info().Str("output", out).Msg("argocd installed")
 		}
@@ -298,11 +298,11 @@ func createCluster(cmd *cobra.Command, args []string) {
 	// install directory/local-argo/bootstrap/argo-bootstrap-*.yaml into the cluster (bootstrap argo repo and apps)
 	kubectlClient := kubectl.NewClient(&kubeconfigPath, nil)
 	base := config.CliConfig.Directory
-	bootstrapPath := filepath.Join(base, "local-argo", "bootstrap")
+	bootstrapPath := filepath.Join(base, "local-argo", "charts", "local-stack", "bootstrap")
 	patterns := []string{filepath.Join(bootstrapPath, "argo-bootstrap-*.yaml")}
 	log.Info().Strs("patterns", patterns).Msg("applying bootstrap manifests into cluster")
 	if err := kubectlClient.ApplyPaths(cmd.Context(), patterns); err != nil {
-		log.Error().Err(err).Msg("failed to apply bootstrap manifests into cluster")
+		log.Fatal().Err(err).Msg("failed to apply bootstrap manifests into cluster")
 	} else {
 		log.Info().Msg("applied bootstrap manifests into cluster")
 	}
