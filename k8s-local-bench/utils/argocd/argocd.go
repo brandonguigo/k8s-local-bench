@@ -71,7 +71,7 @@ func InstallOrUpgradeArgoCD(mounts []RepoMount, kubeconfig string) (string, erro
 	}
 
 	values["global"] = global
-	values["config"] = config
+	values["configs"] = config
 	values["repoServer"] = repoServer
 	values["server"] = server
 
