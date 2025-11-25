@@ -5,6 +5,7 @@ addons:
   httpbin: true
   headlamp: true
   haproxy-ingress: true
+  victoria-metrics: true
 
 # ingress defines the ingress controller to use and it's configuration
 ingress:

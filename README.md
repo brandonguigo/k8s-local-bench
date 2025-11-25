@@ -13,8 +13,6 @@ k8s-local-bench cluster create
 - [ ] update the documentation on all the new features / concepts + add a clead README with quickstart
 - [ ] automatically get the ingress ip (only load balancer service) + update dnsmasq.conf + restart
 - [ ] add mermaid diagrams explaining how it works
-- [ ] test to deploy a httpbin as a workbench app
-- [ ] setup victoria-metrics stack inside the k8s-local-bench chart, enabled by default
 - [ ] add some spinners and logs to the create command
 - [ ] add delete validation to the delete command
 - [ ] display argocd and headlamp (link + token) when the cluster is created
