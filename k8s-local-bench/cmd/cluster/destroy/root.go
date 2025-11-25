@@ -80,7 +80,8 @@ func createCluster(cmd *cobra.Command, args []string) {
 	}
 
 	// delete kind cluster by name
-	if err := kindsvc.Delete(clusterName); err != nil {
+	kindsvcClient := kindsvc.NewClient("")
+	if err := kindsvcClient.Delete(clusterName); err != nil {
 		log.Error().Err(err).Msg("failed deleting kind cluster")
 	} else {
 		log.Info().Str("name", clusterName).Msg("kind cluster deletion invoked")

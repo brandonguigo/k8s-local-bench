@@ -45,9 +45,21 @@ func ensureCloudProviderKindInstalled() error {
 	return nil
 }
 
+// Client provides a small wrapper to configure common options for kind
+// operations such as a default kubeconfig path.
+type Client struct {
+	Kubeconfig string
+}
+
+// NewClient creates a Client. Pass empty string for defaults.
+func NewClient(kubeconfig string) *Client {
+	return &Client{Kubeconfig: kubeconfig}
+}
+
 // Create creates a kind cluster with the provided name. If configPath is non-empty
 // it will be passed to `kind create cluster --config`.
-func Create(name string, configPath string, kubeconfigPath string) error {
+func (c *Client) Create(name string, configPath string) error {
+	kubeconfigPath := c.Kubeconfig
 	if !isInstalled("kind") {
 		return fmt.Errorf("kind not installed")
 	}
@@ -74,7 +86,7 @@ func Create(name string, configPath string, kubeconfigPath string) error {
 }
 
 // Delete deletes a kind cluster by name.
-func Delete(name string) error {
+func (c *Client) Delete(name string) error {
 	if !isInstalled("kind") {
 		return fmt.Errorf("kind not installed")
 	}
@@ -94,7 +106,7 @@ func Delete(name string) error {
 // If background==true the process is started detached and logs are written to
 // a temp file; the function returns immediately while the process continues
 // running after the CLI exits.
-func StartLoadBalancer(clusterName string, background bool) error {
+func (c *Client) StartLoadBalancer(clusterName string, background bool) error {
 	if err := ensureCloudProviderKindInstalled(); err != nil {
 		return err
 	}

@@ -17,3 +17,4 @@ k8s-local-bench cluster create
 - [ ] add delete validation to the delete command
 - [ ] display argocd and headlamp (link + token) when the cluster is created
 - [ ] release new version of the k8s-local-bench chart
+- [ ] configure victoria-metrics ingress

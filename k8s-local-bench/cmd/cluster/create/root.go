@@ -216,7 +216,8 @@ func createCluster(cmd *cobra.Command, args []string) {
 	// create a kind cluster using provided cluster name
 	// kubeconfig path will be in CLI config directory under clusters/<name>/kubeconfig
 	kubeconfigPath := filepath.Join(config.CliConfig.Directory, "clusters", clusterName, "kubeconfig")
-	if err := kindsvc.Create(clusterName, kindCfgPath, kubeconfigPath); err != nil {
+	kindClient := kindsvc.NewClient(kubeconfigPath)
+	if err := kindClient.Create(clusterName, kindCfgPath); err != nil {
 		log.Error().Err(err).Msg("failed creating kind cluster")
 		return
 	}
@@ -227,14 +228,15 @@ func createCluster(cmd *cobra.Command, args []string) {
 	if startLB {
 		if !lbFg {
 			// background
-			if err := kindsvc.StartLoadBalancer(clusterName, true); err != nil {
+			
+			if err := kindClient.StartLoadBalancer(clusterName, true); err != nil {
 				log.Error().Err(err).Msg("failed to start load balancer in background")
 			} else {
 				log.Info().Msg("load balancer started in background")
 			}
 		} else {
 			// foreground: run and wait (this will block until the process exits)
-			if err := kindsvc.StartLoadBalancer(clusterName, false); err != nil {
+			if err := kindClient.StartLoadBalancer(clusterName, false); err != nil {
 				log.Error().Err(err).Msg("failed to run load balancer (foreground)")
 			} else {
 				log.Info().Msg("load balancer run completed")
