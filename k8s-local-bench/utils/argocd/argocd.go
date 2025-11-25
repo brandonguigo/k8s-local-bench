@@ -65,6 +65,14 @@ func InstallOrUpgradeArgoCD(mounts []RepoMount, kubeconfig string) (string, erro
 		"server.insecure": "true",
 	}
 
+	// configure access without login
+	config["cm"] = map[string]interface{}{
+		"users.anonymous.enabled": "true",
+	}
+	config["rbac"] = map[string]interface{}{
+		"policy.default": "role:admin",
+	}
+
 	server["ingress"] = map[string]interface{}{
 		"enabled":          true,
 		"ingressClassName": "haproxy",

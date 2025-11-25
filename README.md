@@ -21,8 +21,12 @@ helm upgrade --install cnpg \
 ```
 
 # TODO
-- [ ] update the documentation on all the new features / concepts
+- [ ] rename to project to localplane
+- [ ] update the documentation on all the new features / concepts + add a clead README with quickstart
 - [ ] add mermaid diagrams explaining how it works
-- [ ] test ingress with dnsmasq manually (lookup the cloud-provider-kind logs + update ip in $(brew --prefix)/etc/dnsmasq.conf)
 - [ ] test to deploy a httpbin as a workbench app
 - [ ] add httpbin deployment in the k8s-local-bench chart
+- [ ] setup prometheus stack inside the k8s-local-bench chart, disabled by default
+- [ ] add some spinners and logs to the create command
+- [ ] add delete validation to the delete command
+- [ ] display argocd and headlamp (link + token) when the cluster is created

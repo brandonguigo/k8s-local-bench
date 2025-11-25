@@ -1,5 +1,11 @@
 # Values for k8s-local-bench chart
 
+# Enable or disable addons for the cluster
+addons:
+  httpbin: true
+  headlamp: true
+  haproxy-ingress: true
+
 # ingress defines the ingress controller to use and it's configuration
 ingress:
   type: haproxy

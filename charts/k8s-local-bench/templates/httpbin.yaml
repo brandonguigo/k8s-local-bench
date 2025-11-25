@@ -1,0 +1,35 @@
+{{- if .Values.addons.httpbin -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: httpbin
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: "https://matheusfm.dev/charts"
+      chart: httpbin
+      targetRevision: 0.1.1
+      path: .
+      helm:
+        values: |
+            fullnameOverride: httpbin
+            ingress:
+                enabled: true
+                ingressClassName: haproxy
+                hosts:
+                  - host: httpbin.k8s-bench.local
+                    paths: 
+                    - path: "/"
+                      pathType: "Prefix"
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: production
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true
+{{ end }}

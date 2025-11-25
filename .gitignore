@@ -1,2 +1,3 @@
 tmp/**
 *.tgz
+**/.DS_Store
