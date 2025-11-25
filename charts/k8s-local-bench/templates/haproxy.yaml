@@ -22,7 +22,7 @@ spec:
             type: LoadBalancer
   destination:
     server: https://kubernetes.default.svc
-    namespace: haproxy
+    namespace: ingress
   syncPolicy:
     automated:
       prune: true

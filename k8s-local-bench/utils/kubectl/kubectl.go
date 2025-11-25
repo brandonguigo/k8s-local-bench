@@ -2,6 +2,7 @@ package kubectl
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -116,4 +117,89 @@ func (c *Client) ApplyPaths(ctx context.Context, patterns []string) error {
 		return fmt.Errorf("kubectl apply failed: %w", err)
 	}
 	return nil
+}
+
+// ServicePort describes a service port.
+type ServicePort struct {
+	Name     string
+	Port     int
+	Protocol string
+}
+
+// Service is a simplified representation of a Kubernetes Service useful
+// for consumers that only need common fields.
+type Service struct {
+	Name        string
+	Namespace   string
+	Type        string
+	ClusterIP   string
+	ExternalIPs []string
+	Ports       []ServicePort
+}
+
+// ListServices returns services in the given namespace. If svcType is
+// non-nil and non-empty, results are filtered to services whose
+// spec.type matches (case-insensitive) the provided value.
+func (c *Client) ListServices(ctx context.Context, namespace string, svcType *string) ([]Service, error) {
+	if namespace == "" {
+		return nil, fmt.Errorf("namespace must be provided")
+	}
+
+	kubectlPath, err := c.resolveKubectl()
+	if err != nil {
+		return nil, err
+	}
+
+	args := []string{"get", "svc", "-n", namespace, "-o", "json"}
+	args = append(args, c.buildBaseArgs()...)
+
+	cmd := exec.CommandContext(ctx, kubectlPath, args...)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("kubectl get services failed: %w", err)
+	}
+
+	var raw struct {
+		Items []struct {
+			Metadata struct {
+				Name      string `json:"name"`
+				Namespace string `json:"namespace"`
+			} `json:"metadata"`
+			Spec struct {
+				Type        string   `json:"type"`
+				ClusterIP   string   `json:"clusterIP"`
+				ExternalIPs []string `json:"externalIPs"`
+				Ports       []struct {
+					Name       string      `json:"name"`
+					Port       int         `json:"port"`
+					TargetPort interface{} `json:"targetPort"`
+					Protocol   string      `json:"protocol"`
+				} `json:"ports"`
+			} `json:"spec"`
+		} `json:"items"`
+	}
+
+	if err := json.Unmarshal(out, &raw); err != nil {
+		return nil, fmt.Errorf("failed to parse kubectl output: %w", err)
+	}
+
+	var svcs []Service
+	for _, it := range raw.Items {
+		if svcType != nil && *svcType != "" && !strings.EqualFold(it.Spec.Type, *svcType) {
+			continue
+		}
+		s := Service{
+			Name:        it.Metadata.Name,
+			Namespace:   it.Metadata.Namespace,
+			Type:        it.Spec.Type,
+			ClusterIP:   it.Spec.ClusterIP,
+			ExternalIPs: it.Spec.ExternalIPs,
+		}
+		for _, p := range it.Spec.Ports {
+			s.Ports = append(s.Ports, ServicePort{Name: p.Name, Port: p.Port, Protocol: p.Protocol})
+		}
+		svcs = append(svcs, s)
+	}
+
+	return svcs, nil
 }
