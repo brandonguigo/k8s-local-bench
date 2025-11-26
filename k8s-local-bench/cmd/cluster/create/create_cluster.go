@@ -16,6 +16,7 @@ import (
 	kindcfg "k8s-local-bench/utils/kind/config"
 	"k8s-local-bench/utils/kubectl"
 
+	"github.com/briandowns/spinner"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -63,13 +64,17 @@ func createCluster(cmd *cobra.Command, args []string) {
 	}
 
 	// create cluster
-	log.Info().Str("name", clusterName).Msg("creating kind cluster")
+	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	s.Prefix = "Creating kind cluster... "
+	s.Start()
 	kubeconfigPath := filepath.Join(config.CliConfig.Directory, "clusters", clusterName, "kubeconfig")
 	kindClient := kindsvc.NewClient(kubeconfigPath)
 	if err := kindClient.Create(clusterName, kindCfgPath); err != nil {
+		s.Stop()
 		log.Error().Err(err).Msg("failed creating kind cluster")
 		return
 	}
+	s.Stop()
 	log.Info().Str("name", clusterName).Msg("kind cluster created")
 
 	// start load balancer
@@ -78,22 +83,35 @@ func createCluster(cmd *cobra.Command, args []string) {
 	log.Info().Msg("local load balancer started")
 
 	// wait for readiness
-	log.Info().Msg("waiting for cluster readiness")
+	s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	s.Prefix = "Waiting for cluster to be ready... "
+	s.Start()
 	waitForClusterReadiness(clusterName, 3*time.Minute)
+	s.Stop()
 	log.Info().Msg("cluster is ready")
 
 	// install argocd if requested
 	if disableArgoCD {
 		log.Info().Msg("skipping ArgoCD installation as requested")
 	} else {
-		log.Info().Msg("installing ArgoCD into the cluster")
+		s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+		s.Prefix = "Installing ArgoCD... "
+		s.Start()
 	}
 	installArgoIfRequested(kubeconfigPath, disableArgoCD)
+	s.Stop()
+	if !disableArgoCD {
+		log.Info().Msg("ArgoCD installed")
+	}
 
 	// apply bootstrap manifests
 	if !disableArgoCD {
-		log.Info().Msg("applying bootstrap manifests into the cluster")
+		s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+		s.Prefix = "Applying bootstrap manifests... "
+		s.Start()
 		applyBootstrapManifests(cmd, kubeconfigPath, base)
+		s.Stop()
+		log.Info().Msg("bootstrap manifests applied")
 	} else {
 		log.Info().Msg("skipping bootstrap manifests application as ArgoCD is disabled")
 	}
@@ -103,8 +121,11 @@ func createCluster(cmd *cobra.Command, args []string) {
 	// controller service of type LoadBalancer).
 	ingressNs := "ingress"
 
-	log.Info().Str("namespace", ingressNs).Msg("waiting for LoadBalancer service for ingress")
+	s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	s.Prefix = "Waiting for LoadBalancer service for ingress... "
+	s.Start()
 	svc, err := waitForLoadBalancerService(context.Background(), kubeconfigPath, ingressNs, 3*time.Minute, 5*time.Second)
+	s.Stop()
 	if err != nil {
 		log.Warn().Err(err).Msg("did not find LoadBalancer service for ingress")
 	} else {
@@ -112,9 +133,12 @@ func createCluster(cmd *cobra.Command, args []string) {
 	}
 
 	// update the dnsmasq configuration
-	log.Info().Msg("updating dnsmasq configuration")
+	s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	s.Prefix = "Updating dnsmasq configuration... "
+	s.Start()
 	domain := "k8s-bench.local"
 	err = updateDnsmasqConfig(cmd, domain, svc.ExternalIPs[0])
+	s.Stop()
 	if err != nil {
 		log.Error().Err(err).Msg("failed updating dnsmasq configuration")
 	} else {
