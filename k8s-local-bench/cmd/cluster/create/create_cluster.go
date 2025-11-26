@@ -76,7 +76,6 @@ func createCluster(cmd *cobra.Command, args []string) {
 	}
 	s.Stop()
 	log.Info().Str("name", clusterName).Msg("kind cluster created")
-
 	// start load balancer
 	log.Info().Msg("starting local load balancer for LoadBalancer services")
 	startLocalLoadBalancer(kindClient, cmd, clusterName)
@@ -94,7 +93,7 @@ func createCluster(cmd *cobra.Command, args []string) {
 	if disableArgoCD {
 		log.Info().Msg("skipping ArgoCD installation as requested")
 	} else {
-		s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 		s.Prefix = "Installing ArgoCD... "
 		s.Start()
 	}
