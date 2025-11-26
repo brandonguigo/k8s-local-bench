@@ -44,12 +44,18 @@ func createCluster(cmd *cobra.Command, args []string) {
 	}
 
 	// locate or create kind config
+	log.Info().Str("cluster", clusterName).Msg("locating kind config")
 	kindCfgPath := shared.FindKindConfig(clusterName)
 	var kindCfg *kindcfg.KindCluster
+	log.Debug().Str("path", kindCfgPath).Msg("kind config path located")
+
+	log.Info().Str("path", kindCfgPath).Msg("loading or creating kind config")
 	kindCfgPath, kindCfg = loadOrCreateKindConfig(kindCfgPath, clusterName)
 
 	// ArgoCD / local-argo setup
+	log.Info().Str("path", kindCfgPath).Msg("setting up ArgoCD inside the nodes")
 	base, kindCfgPath, kindCfg := setupLocalArgo(cmd, disableArgoCD, kindCfgPath, kindCfg)
+	log.Info().Str("path", kindCfgPath).Msg("kind config ready")
 
 	// confirmation
 	if !askCreateConfirmation(cmd, clusterName) {
@@ -57,31 +63,47 @@ func createCluster(cmd *cobra.Command, args []string) {
 	}
 
 	// create cluster
+	log.Info().Str("name", clusterName).Msg("creating kind cluster")
 	kubeconfigPath := filepath.Join(config.CliConfig.Directory, "clusters", clusterName, "kubeconfig")
 	kindClient := kindsvc.NewClient(kubeconfigPath)
 	if err := kindClient.Create(clusterName, kindCfgPath); err != nil {
 		log.Error().Err(err).Msg("failed creating kind cluster")
 		return
 	}
-	log.Info().Str("name", clusterName).Msg("kind cluster creation invoked")
+	log.Info().Str("name", clusterName).Msg("kind cluster created")
 
 	// start load balancer
+	log.Info().Msg("starting local load balancer for LoadBalancer services")
 	startLocalLoadBalancer(kindClient, cmd, clusterName)
+	log.Info().Msg("local load balancer started")
 
 	// wait for readiness
+	log.Info().Msg("waiting for cluster readiness")
 	waitForClusterReadiness(clusterName, 3*time.Minute)
+	log.Info().Msg("cluster is ready")
 
 	// install argocd if requested
+	if disableArgoCD {
+		log.Info().Msg("skipping ArgoCD installation as requested")
+	} else {
+		log.Info().Msg("installing ArgoCD into the cluster")
+	}
 	installArgoIfRequested(kubeconfigPath, disableArgoCD)
 
 	// apply bootstrap manifests
-	applyBootstrapManifests(cmd, kubeconfigPath, base)
+	if !disableArgoCD {
+		log.Info().Msg("applying bootstrap manifests into the cluster")
+		applyBootstrapManifests(cmd, kubeconfigPath, base)
+	} else {
+		log.Info().Msg("skipping bootstrap manifests application as ArgoCD is disabled")
+	}
 
 	// wait for ingress to be ready inside the `ingress` namespace, then get the only
 	// Service with type LoadBalancer (assumes the chart installs a single ingress
 	// controller service of type LoadBalancer).
 	ingressNs := "ingress"
 
+	log.Info().Str("namespace", ingressNs).Msg("waiting for LoadBalancer service for ingress")
 	svc, err := waitForLoadBalancerService(context.Background(), kubeconfigPath, ingressNs, 3*time.Minute, 5*time.Second)
 	if err != nil {
 		log.Warn().Err(err).Msg("did not find LoadBalancer service for ingress")
@@ -89,7 +111,8 @@ func createCluster(cmd *cobra.Command, args []string) {
 		log.Info().Str("service", svc.Name).Str("namespace", svc.Namespace).Msg("found LoadBalancer service for ingress")
 	}
 
-	// update the dnsmasq confifuration
+	// update the dnsmasq configuration
+	log.Info().Msg("updating dnsmasq configuration")
 	domain := "k8s-bench.local"
 	err = updateDnsmasqConfig(cmd, domain, svc.ExternalIPs[0])
 	if err != nil {

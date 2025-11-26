@@ -23,5 +23,4 @@ func displayClusterInfo(clusterName, kubeconfigPath, argoCDUrl, headlampUrl, hea
 	fmt.Println()
 	fmt.Printf("🔑 Headlamp Token: %s", headlampSecret)
 	fmt.Println()
-
 }
