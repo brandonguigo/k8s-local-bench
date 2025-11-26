@@ -10,7 +10,7 @@ Purpose:
 Usage:
 
 ```bash
-k8s-local-bench cluster destroy [flags]
+localplane cluster destroy [flags]
 ```
 
 Flags:
@@ -33,7 +33,7 @@ Example:
 
 ```bash
 # Delete cluster and associated load balancer
-./k8s-local-bench cluster destroy --cluster-name local-bench
+./localplane cluster destroy --cluster-name local-bench
 ```
 
 Developer note:

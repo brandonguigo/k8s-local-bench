@@ -10,7 +10,7 @@ Purpose:
 Usage:
 
 ```bash
-k8s-local-bench cluster create [flags]
+localplane cluster create [flags]
 ```
 
 Flags:
@@ -50,7 +50,7 @@ go run main.go cluster create
 go run main.go cluster create -d ../tmp --cluster-name test-cluster -y
 
 # Create and run load balancer in foreground
-./k8s-local-bench cluster create --lb-foreground
+./localplane cluster create --lb-foreground
 ```
 
 Testing and verification tips:

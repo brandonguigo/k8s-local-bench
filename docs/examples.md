@@ -7,28 +7,28 @@ This page shows runnable examples for common scenarios.
 
 ```bash
 # Use the repo root as the CLI directory so the included cluster-config.yaml is used
-export K8S_LOCAL_BENCH_DIRECTORY=$(pwd)
+export LOCALPLANE_DIRECTORY=$(pwd)
 go run main.go cluster create -y
 ```
 
 2) Create a cluster using a named cluster config stored under the CLI directory
 
 ```bash
-# Example: ~/.k8s-local-bench/clusters/mytest/kind-config.yaml
-export K8S_LOCAL_BENCH_DIRECTORY=$HOME/.k8s-local-bench
+# Example: ~/.localplane/clusters/mytest/kind-config.yaml
+export LOCALPLANE_DIRECTORY=$HOME/.localplane
 go run main.go cluster create --cluster-name mytest -y
 ```
 
 3) Create but don't start the load balancer
 
 ```bash
-./k8s-local-bench cluster create --start-lb=false -y
+./localplane cluster create --start-lb=false -y
 ```
 
 4) Run the load balancer in foreground for debugging
 
 ```bash
-./k8s-local-bench cluster create --lb-foreground
+./localplane cluster create --lb-foreground
 ```
 
 Kind config sample (repository `cluster-config.yaml`):
@@ -65,5 +65,5 @@ Basically, you can deploy anything you'd like from a simple http api to a comple
 Destroying a cluster
 
 ```bash
-./k8s-local-bench cluster destroy --cluster-name local-bench
+./localplane cluster destroy --cluster-name local-bench
 ```

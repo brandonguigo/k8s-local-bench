@@ -1,0 +1,43 @@
+{{- if index .Values.addons "victoria-metrics" -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: victoria-metrics-k8s-stack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://victoriametrics.github.io/helm-charts/
+    chart: victoria-metrics-k8s-stack
+    targetRevision: "0.63.6"
+    helm:
+      values: |
+        vmsingle:
+          ingress:
+            enabled: true
+            ingressClassName: haproxy
+            hosts:
+              - metrics.localplane
+            path: /
+            pathType: Prefix
+            tls: []
+        grafana:
+          ingress:
+            enabled: true
+            ingressClassName: haproxy
+            hosts:
+              - grafana.localplane
+            path: /
+            pathType: Prefix
+            tls: []
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+{{ end }}

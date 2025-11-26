@@ -1,10 +1,10 @@
-# k8s-local-bench CLI
+# localplane CLI
 
-This document describes the `k8s-local-bench` command-line interface, how configuration is loaded, and the cluster-related commands implemented in this repository.
+This document describes the `localplane` command-line interface, how configuration is loaded, and the cluster-related commands implemented in this repository.
 
 ## Overview
 
-- Binary: `k8s-local-bench` (development: run with `go run main.go`)
+- Binary: `localplane` (development: run with `go run main.go`)
 - Purpose: create and manage a local Kubernetes cluster (using `kind` and a small load-balancer helper).
 
 ## Installation / Run (quick)
@@ -18,8 +18,8 @@ go run main.go <command> [flags]
 Build a binary:
 
 ```bash
-go build -o k8s-local-bench ./...
-./k8s-local-bench <command> [flags]
+go build -o localplane ./...
+./localplane <command> [flags]
 ```
 
 ## Configuration
@@ -27,12 +27,12 @@ go build -o k8s-local-bench ./...
 The CLI supports configuration via (in precedence order): command-line flags, environment variables, and an optional config file.
 
 - Config file flag: `--config, -c` — if provided, the specified file is used.
-- Default config file: a hidden file named `.k8s-local-bench` (YAML) is searched for in `$HOME` if `--config` is not provided.
-- Environment variables: prefixed with `K8S_LOCAL_BENCH` (e.g. `K8S_LOCAL_BENCH_DIRECTORY`).
+- Default config file: a hidden file named `.localplane` (YAML) is searched for in `$HOME` if `--config` is not provided.
+- Environment variables: prefixed with `LOCALPLANE` (e.g. `LOCALPLANE_DIRECTORY`).
 - Flags are bound to Viper and can be set on the CLI; root persistent flags include `--directory` (`-d`).
  - Config file flag: `--config, -c` — if provided, the specified file is used.
- - Default config file: a hidden file named `.k8s-local-bench` (YAML) is searched for in `$HOME` if `--config` is not provided.
- - Environment variables: prefixed with `K8S_LOCAL_BENCH` (e.g. `K8S_LOCAL_BENCH_DIRECTORY`).
+ - Default config file: a hidden file named `.localplane` (YAML) is searched for in `$HOME` if `--config` is not provided.
+ - Environment variables: prefixed with `LOCALPLANE` (e.g. `LOCALPLANE_DIRECTORY`).
  - Flags are bound to Viper and can be set on the CLI; root persistent flags include `--directory` (`-d`) and `--config` (`-c`).
 
 Config fields (unmarshalled into `config.CliConfig`):
@@ -43,8 +43,8 @@ Config fields (unmarshalled into `config.CliConfig`):
 Example env usage:
 
 ```bash
-export K8S_LOCAL_BENCH_DIRECTORY=/path/to/configs
-export K8S_LOCAL_BENCH_DEBUG=true
+export LOCALPLANE_DIRECTORY=/path/to/configs
+export LOCALPLANE_DEBUG=true
 go run main.go cluster create
 ```
 
@@ -63,7 +63,7 @@ Commands may also search for files named `kind-config.yaml`, `kind.yaml`, or sim
 
 ## Commands
 
-Top-level command: `k8s-local-bench`.
+Top-level command: `localplane`.
 
 Subcommand group: `cluster` — control local k8s clusters.
 
@@ -76,7 +76,7 @@ Persistent flags available to the `cluster` command and its subcommands:
 Usage:
 
 ```bash
-k8s-local-bench cluster create [flags]
+localplane cluster create [flags]
 ```
 
 What it does:
@@ -105,10 +105,10 @@ go run main.go cluster create
 go run main.go cluster create -d ../tmp -y
 
 # Don't start the built-in load balancer
-./k8s-local-bench cluster create --start-lb=false
+./localplane cluster create --start-lb=false
 
 # Run load balancer in foreground (blocking)
-./k8s-local-bench cluster create --lb-foreground
+./localplane cluster create --lb-foreground
 ```
 
 Notes:
@@ -117,7 +117,7 @@ Notes:
 - `create` performs additional convenience steps by default:
   - It initializes a `local-argo` git repository under the configured `directory` (or CWD when not set), if not disabled.
   - It patches the kind config to mount the `local-argo` directory into the kind nodes at `/mnt/local-argo`.
-  - If the `local-stack` chart is missing in `local-argo/charts/local-stack`, the CLI downloads the chart path from the repository `brandonguigo/k8s-local-bench` (ref: `main`) into that location and commits the change to the `local-argo` repo.
+  - If the `local-stack` chart is missing in `local-argo/charts/local-stack`, the CLI downloads the chart path from the repository `brandonguigo/localplane` (ref: `main`) into that location and commits the change to the `local-argo` repo.
   - Unless `--disable-argocd` is set, the CLI will install or upgrade ArgoCD via the Helm SDK and mount the `local-argo` repo into ArgoCD.
   - After cluster creation the CLI applies bootstrap manifests from `local-argo/charts/local-stack/bootstrap` into the cluster.
 
@@ -126,7 +126,7 @@ Notes:
 Usage:
 
 ```bash
-k8s-local-bench cluster destroy [flags]
+localplane cluster destroy [flags]
 ```
 
 What it does:
@@ -149,7 +149,7 @@ Behavior details:
 Create a cluster using a config stored under the CLI `directory`:
 
 ```bash
-export K8S_LOCAL_BENCH_DIRECTORY=$PWD
+export LOCALPLANE_DIRECTORY=$PWD
 go run main.go cluster create -y
 ```
 
@@ -170,7 +170,7 @@ go run main.go cluster destroy --cluster-name local-bench
 - If you want `cluster destroy` to be available from the CLI, ensure it is added to the `cluster` command (the code for `destroy` exists under `cmd/cluster/destroy` but may not be wired into `cmd/cluster/root.go`).
 - Consider implementing cluster status checks and more robust waiting logic after `kind` creation to confirm the cluster is ready.
 
-- Charts: See `docs/charts.md` for details on the `k8s-local-bench` repository chart and the `local-stack` chart that the CLI downloads into each project for local ArgoCD-driven development.
+- Charts: See `docs/charts.md` for details on the `localplane` repository chart and the `local-stack` chart that the CLI downloads into each project for local ArgoCD-driven development.
 
 ---
 

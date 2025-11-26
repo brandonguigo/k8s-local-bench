@@ -1,6 +1,6 @@
-# Documentation — k8s-local-bench
+# Documentation — localplane
 
-This `docs/` folder contains user and developer documentation for the `k8s-local-bench` CLI.
+This `docs/` folder contains user and developer documentation for the `localplane` CLI.
 
 Structure:
 

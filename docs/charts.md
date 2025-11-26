@@ -1,17 +1,17 @@
-# Charts: `k8s-local-bench` and `local-stack`
+# Charts: `localplane` and `local-stack`
 
-This document describes the repository-provided Helm chart `k8s-local-bench` (used to install cluster addons) and the `local-stack` chart that the CLI downloads into each local cluster project to enable direct development and deployment via the local ArgoCD instance.
+This document describes the repository-provided Helm chart `localplane` (used to install cluster addons) and the `local-stack` chart that the CLI downloads into each local cluster project to enable direct development and deployment via the local ArgoCD instance.
 
 Overview
-- The repository contains a top-level chart `charts/k8s-local-bench/` which is intended to install the project-provided addons (Headlamp, HAProxy, Victoria Metrics, reloader, httpbin, etc.) into a cluster.
-- During `k8s-local-bench cluster create`, the CLI ensures a per-project `local-argo` Git repository exists (under the configured `--directory` or current working dir). If `local-argo/charts/local-stack` is missing, the CLI downloads the `charts/local-stack` content from the repository (owner `brandonguigo`, ref `main`) into that path and commits it to the `local-argo` repo.
+- The repository contains a top-level chart `charts/localplane/` which is intended to install the project-provided addons (Headlamp, HAProxy, Victoria Metrics, reloader, httpbin, etc.) into a cluster.
+- During `localplane cluster create`, the CLI ensures a per-project `local-argo` Git repository exists (under the configured `--directory` or current working dir). If `local-argo/charts/local-stack` is missing, the CLI downloads the `charts/local-stack` content from the repository (owner `brandonguigo`, ref `main`) into that path and commits it to the `local-argo` repo.
 
 Why this matters
 - Each local cluster project gets its own `local-stack` chart under `local-argo/charts/local-stack` so you can iterate on charts and have ArgoCD manage deployments from the local repo.
 - The CLI patches the cluster kind config to mount `local-argo` into the nodes at `/mnt/local-argo` and installs ArgoCD (unless `--disable-argocd`), mounting the repo into ArgoCD so changes committed locally can be deployed by ArgoCD.
 
 Paths and layout
-- Repository chart: `charts/k8s-local-bench/`
+- Repository chart: `charts/localplane/`
 - Project-local chart (download target): `<project-base>/local-argo/charts/local-stack/`
 - Bootstrap manifests applied into the cluster after create: `<project-base>/local-argo/charts/local-stack/bootstrap/` (these are applied by the CLI after ArgoCD installation)
 

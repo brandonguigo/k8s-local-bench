@@ -1,0 +1,5 @@
+apiVersion: v2
+name: localplane-addons
+description: helm chart that deploys the localplane addons apps in a k8s cluster
+type: application
+version: 0.2.2

@@ -1,5 +1,0 @@
-apiVersion: v2
-name: k8s-local-bench
-description: helm chart that deploys k8s-local-bench in a k8s cluster
-type: application
-version: 0.2.2

@@ -1,6 +1,6 @@
 # Overview
 
-k8s-local-bench is a small CLI tool to create and manage a local Kubernetes cluster intended for development and testing. The project uses `kind` (Kubernetes-in-Docker) and includes a lightweight load-balancer helper to support local service routing.
+localplane is a small CLI tool to create and manage a local Kubernetes cluster intended for development and testing. The project uses `kind` (Kubernetes-in-Docker) and includes a lightweight load-balancer helper to support local service routing.
 
 Quick run (development):
 
@@ -11,8 +11,8 @@ go run main.go <command> [flags]
 Build and run:
 
 ```bash
-go build -o k8s-local-bench ./...
-./k8s-local-bench <command> [flags]
+go build -o localplane ./...
+./localplane <command> [flags]
 ```
 
 Project layout (relevant files):

@@ -1,13 +1,13 @@
-# k8s-local-bench
+# localplane
 
-## Quick start — create a local cluster
+## Quickstart
 
 Create a workspace and run the CLI to create a local `kind` cluster. The `create` command performs some helpful setup by default (local-argo repo, ArgoCD installation, bootstrap manifests):
 
 ```bash
 mkdir my-local-workspace
-export K8S_LOCAL_BENCH_DIRECTORY=$PWD
-go run main.go cluster create
+export LOCALPLANE_DIRECTORY=$PWD
+localplane cluster create
 ```
 
 Common quick options:
