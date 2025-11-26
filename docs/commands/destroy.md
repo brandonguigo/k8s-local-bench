@@ -1,10 +1,11 @@
+
 # cluster destroy — Detailed
 
 Location: `cmd/cluster/destroy/root.go`
 
 Purpose:
 
-- Intended to stop and remove a local `kind` cluster created by this tool.
+- Stop and remove a local `kind` cluster created by this tool.
 
 Usage:
 
@@ -14,26 +15,21 @@ k8s-local-bench cluster destroy [flags]
 
 Flags:
 
-- inherited: `--cluster-name` (default `local-bench`), `--directory` (root CLI directory)
+- inherited: `--cluster-name` (optional), `--directory` (root CLI directory)
 
-Current implementation status:
+Behavior and details:
 
-- The command currently logs intent and locates a `kind` config file using the same `findKindConfig` strategy as `create`.
-- The actual cluster deletion and load-balancer shutdown logic are TODOs in the codebase; `destroy` is a placeholder until removal routines are implemented.
+- If no `--cluster-name` is provided, the command lists existing `kind` clusters and prompts the user to select one interactively.
+- The command deletes the cluster via the `utils/kind` helper and then attempts a best-effort shutdown of any `cloud-provider-kind` processes (uses `pkill -f 'sudo cloud-provider-kind'`).
+- The CLI polls to confirm the cluster is no longer present and performs cleanup of local files for the cluster.
 
-How `findKindConfig` searches for kind configs:
+How `findKindConfig` searches for kind configs (used for locating cluster-specific config):
 
 - If `cluster-name` is set: `$(directory)/clusters/<cluster-name>/kind-config.yaml|yml` and `kind*.y*ml` glob.
 - Then `$(directory)/kind-config.yaml|yml` and `kind*.y*ml` glob.
 - Then current working directory, same filename patterns.
 
-Recommended implementation steps (developer guidance):
-
-1. Use `kind` to delete the cluster: `kind delete cluster --name <cluster-name>` (or the equivalent API in the `utils/kind` helper).
-2. Ensure any background `cloud-provider-kind` process started by `StartLoadBalancer` is stopped. If `StartLoadBalancer` tracked PIDs or uses a supervisor, call the stop routine.
-3. Add robust error handling and status checks to confirm cluster deletion. Consider verifying that `kubectl` no longer lists the cluster nodes.
-
-Example (expected once implemented):
+Example:
 
 ```bash
 # Delete cluster and associated load balancer
@@ -42,5 +38,4 @@ Example (expected once implemented):
 
 Developer note:
 
-- Add unit tests for the `utils/kind` helper to simulate create/delete and background process management.
-- Consider adding a `--force` flag for non-interactive deletion in the future.
+- Consider adding a `--force` flag for non-interactive deletion in the future and expand unit tests around `utils/kind` helpers.

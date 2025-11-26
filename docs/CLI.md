@@ -1,6 +1,6 @@
 # k8s-local-bench CLI
 
-This document describes the `k8s-local-bench` command-line interface, how configuration is loaded, and the two cluster-related commands implemented in this repository.
+This document describes the `k8s-local-bench` command-line interface, how configuration is loaded, and the cluster-related commands implemented in this repository.
 
 ## Overview
 
@@ -30,6 +30,10 @@ The CLI supports configuration via (in precedence order): command-line flags, en
 - Default config file: a hidden file named `.k8s-local-bench` (YAML) is searched for in `$HOME` if `--config` is not provided.
 - Environment variables: prefixed with `K8S_LOCAL_BENCH` (e.g. `K8S_LOCAL_BENCH_DIRECTORY`).
 - Flags are bound to Viper and can be set on the CLI; root persistent flags include `--directory` (`-d`).
+ - Config file flag: `--config, -c` — if provided, the specified file is used.
+ - Default config file: a hidden file named `.k8s-local-bench` (YAML) is searched for in `$HOME` if `--config` is not provided.
+ - Environment variables: prefixed with `K8S_LOCAL_BENCH` (e.g. `K8S_LOCAL_BENCH_DIRECTORY`).
+ - Flags are bound to Viper and can be set on the CLI; root persistent flags include `--directory` (`-d`) and `--config` (`-c`).
 
 Config fields (unmarshalled into `config.CliConfig`):
 
@@ -65,7 +69,7 @@ Subcommand group: `cluster` — control local k8s clusters.
 
 Persistent flags available to the `cluster` command and its subcommands:
 
-- `--cluster-name` (string) — default: `local-bench`. Name of the cluster and the directory name under `clusters/` the tool will use.
+- `--cluster-name` (string) — optional. If not provided, `cluster create` will prompt for a name and default to `local-bench` when left empty. Many commands also accept an interactive selection when the name is omitted.
 
 ### cluster create
 
@@ -78,16 +82,18 @@ k8s-local-bench cluster create [flags]
 What it does:
 
 - Creates a local `kind` cluster (the implementation uses the `utils/kind` helper).
-- Looks for a kind config file in the following order:
-  - `$(directory)/clusters/<cluster-name>/kind-config.yaml` (or `kind-config.yml`, or glob `kind*.y*ml`)
-  - `$(directory)/kind-config.yaml` (or `kind*.y*ml`)
-  - CWD `kind-config.yaml` (or `kind*.y*ml`)
+- Locates or creates a kind config: the CLI searches in this order:
+  - `$(directory)/clusters/<cluster-name>/kind-config.yaml|yml` and `kind*.y*ml` glob
+  - `$(directory)/kind-config.yaml|yml` and `kind*.y*ml` glob
+  - current working directory `kind-config.yaml|yml` and `kind*.y*ml` glob
+  If no config is found, `create` will write a default `kind-config.yaml` under `$(directory)/clusters/<cluster-name>/kind-config.yaml`.
 
 Flags specific to `create`:
 
 - `-y, --yes` (bool): don't ask for confirmation; assume yes.
 - `--start-lb` (bool, default: true): start the local load balancer (cloud-provider-kind helper).
 - `--lb-foreground` (bool, default: false): run load balancer in the foreground (blocking); otherwise it runs in background.
+- `--disable-argocd` (bool, default: false): skip ArgoCD/local-argo setup and ArgoCD Helm install.
 
 Examples:
 
@@ -107,8 +113,13 @@ go run main.go cluster create -d ../tmp -y
 
 Notes:
 
-- The command references `config.CliConfig.Debug` and respects the global debug setting.
-- After cluster creation the tool attempts to start a simple load balancer helper. The background/foreground behavior is controlled with `--lb-foreground`.
+- The command references `config.CliConfig.Debug` and respects the global debug setting (or `LOG_LEVEL=debug`).
+- `create` performs additional convenience steps by default:
+  - It initializes a `local-argo` git repository under the configured `directory` (or CWD when not set), if not disabled.
+  - It patches the kind config to mount the `local-argo` directory into the kind nodes at `/mnt/local-argo`.
+  - If the `local-stack` chart is missing in `local-argo/charts/local-stack`, the CLI downloads the chart path from the repository `brandonguigo/k8s-local-bench` (ref: `main`) into that location and commits the change to the `local-argo` repo.
+  - Unless `--disable-argocd` is set, the CLI will install or upgrade ArgoCD via the Helm SDK and mount the `local-argo` repo into ArgoCD.
+  - After cluster creation the CLI applies bootstrap manifests from `local-argo/charts/local-stack/bootstrap` into the cluster.
 
 ### cluster destroy
 
@@ -120,18 +131,20 @@ k8s-local-bench cluster destroy [flags]
 
 What it does:
 
-- Intended to delete/stop a local `kind` cluster.
-- The implementation currently looks for kind config files in the same search locations as `create`.
+- Deletes/stops a local `kind` cluster using the `utils/kind` helper.
+- If no `--cluster-name` is provided, it will list existing `kind` clusters and prompt for an interactive selection.
 
 Flags:
 
 - Inherits `--cluster-name` from `cluster` persistent flags.
 
-Status / caveats:
+Behavior details:
 
-- The `destroy` command implementation contains TODOs in the codebase: it logs intent and locates config files but the actual delete/stop logic is not yet implemented. Treat `destroy` as a placeholder until the removal routines are implemented.
+- The command attempts to delete the cluster via the `kind` helper. It then performs a best-effort stop of any running `cloud-provider-kind` processes (the implementation invokes `pkill -f 'sudo cloud-provider-kind'`).
+- The CLI polls briefly to ensure the cluster has been removed and performs local cleanup of files associated with the cluster directory.
 
 ## Examples & common workflows
+
 
 Create a cluster using a config stored under the CLI `directory`:
 
@@ -146,7 +159,7 @@ Create a cluster with an explicit config file and run the load balancer in foreg
 go run main.go cluster create -y --lb-foreground
 ```
 
-Destroy (note: destroy currently has TODOs and may not remove the cluster fully):
+Destroy:
 
 ```bash
 go run main.go cluster destroy --cluster-name local-bench
@@ -156,6 +169,8 @@ go run main.go cluster destroy --cluster-name local-bench
 
 - If you want `cluster destroy` to be available from the CLI, ensure it is added to the `cluster` command (the code for `destroy` exists under `cmd/cluster/destroy` but may not be wired into `cmd/cluster/root.go`).
 - Consider implementing cluster status checks and more robust waiting logic after `kind` creation to confirm the cluster is ready.
+
+- Charts: See `docs/charts.md` for details on the `k8s-local-bench` repository chart and the `local-stack` chart that the CLI downloads into each project for local ArgoCD-driven development.
 
 ---
 

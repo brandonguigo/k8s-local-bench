@@ -2,6 +2,7 @@
 
 This page shows runnable examples for common scenarios.
 
+# Create a cluster
 1) Create a cluster using repository root config
 
 ```bash
@@ -30,12 +31,6 @@ go run main.go cluster create --cluster-name mytest -y
 ./k8s-local-bench cluster create --lb-foreground
 ```
 
-5) Destroying a cluster (placeholder; may not yet remove everything)
-
-```bash
-./k8s-local-bench cluster destroy --cluster-name local-bench
-```
-
 Kind config sample (repository `cluster-config.yaml`):
 
 ```yaml
@@ -51,4 +46,24 @@ Verification commands after creation:
 ```bash
 kubectl cluster-info --context kind-local-bench
 kubectl get nodes
+```
+
+# Work inside the cluster locally
+
+To work inside the cluster, a local-argo local git repository have been created.
+
+Inside of this repository, you can edit charts/local-stack as you like : add ArgoCD apps, add pods, deployments, anything you'd like. 
+
+You can also create new charts inside the charts directory, then use them as an ArgoCD app inside local-stack.
+
+You can add an origin to the local-argo repository to push your local workbench to a remote Git server like GitHub.
+
+Basically, you can deploy anything you'd like from a simple http api to a complete microservice stack reusing the production helm chart for your platform with databases, operators, redis, rabbitmq, clickhouse...
+
+# Destroy the cluster
+
+Destroying a cluster
+
+```bash
+./k8s-local-bench cluster destroy --cluster-name local-bench
 ```
