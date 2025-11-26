@@ -97,5 +97,9 @@ func createCluster(cmd *cobra.Command, args []string) {
 		log.Info().Str("domain", domain).Str("ip", svc.ExternalIPs[0]).Msg("updated dnsmasq configuration")
 	}
 
+	// display cluster infos
+	argoCDUrl := "argocd" + "." + domain
+	displayClusterInfo(clusterName, argoCDUrl)
+
 	log.Info().Msg("local k8s cluster creation process completed")
 }

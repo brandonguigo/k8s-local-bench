@@ -26,7 +26,6 @@ See `docs/CLI.md` and `docs/commands/*` for more details.
 - [ ] add some spinners and logs to the create command
 - [ ] replace prompts with promptui
 - [ ] use https://github.com/jedib0t/go-pretty for tables, and progress display instead of basic logging
-- [ ] add delete validation to the delete command
 - [ ] display argocd and headlamp (link + token) when the cluster is created
 - [ ] release new version of the k8s-local-bench chart
 - [ ] configure victoria-metrics ingress
