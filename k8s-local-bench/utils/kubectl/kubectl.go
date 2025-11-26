@@ -161,9 +161,6 @@ func (c *Client) ListServices(ctx context.Context, namespace string, svcType *st
 		return nil, fmt.Errorf("kubectl get services failed: %w", err)
 	}
 
-	log.Info().Str("cmd", strings.Join(cmd.Args, " ")).Msg("kubectl command executed")
-	log.Info().Str("output", string(out)).Msg("kubectl command output")
-
 	var raw struct {
 		Items []struct {
 			Metadata struct {
@@ -223,4 +220,31 @@ func (c *Client) ListServices(ctx context.Context, namespace string, svcType *st
 	}
 
 	return svcs, nil
+}
+
+// CreateToken runs `kubectl create token <serviceaccount> -n <namespace>` and
+// returns the created token string. Both `saName` and `namespace` are required.
+func (c *Client) CreateToken(ctx context.Context, saName, namespace string) (string, error) {
+	if saName == "" || namespace == "" {
+		return "", fmt.Errorf("service account name and namespace must be provided")
+	}
+
+	kubectlPath, err := c.resolveKubectl()
+	if err != nil {
+		return "", err
+	}
+
+	args := []string{"create", "token", saName, "-n", namespace}
+	args = append(args, c.buildBaseArgs()...)
+
+	cmd := exec.CommandContext(ctx, kubectlPath, args...)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("kubectl create token failed: %w", err)
+	}
+
+	log.Info().Str("cmd", strings.Join(cmd.Args, " ")).Msg("kubectl command executed")
+
+	token := strings.TrimSpace(string(out))
+	return token, nil
 }

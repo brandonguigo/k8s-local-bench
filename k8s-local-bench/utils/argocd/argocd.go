@@ -3,6 +3,7 @@ package argocd
 import (
 	"errors"
 	"fmt"
+	"k8s-local-bench/config"
 	stdlog "log"
 	"os"
 	"time"
@@ -50,7 +51,7 @@ func (c *Client) InstallOrUpgradeArgoCD(mounts []RepoMount) (string, error) {
 	vms := []interface{}{}
 
 	global := map[string]interface{}{}
-	config := map[string]interface{}{}
+	configs := map[string]interface{}{}
 
 	for _, m := range mounts {
 		vols = append(vols, map[string]interface{}{
@@ -71,15 +72,15 @@ func (c *Client) InstallOrUpgradeArgoCD(mounts []RepoMount) (string, error) {
 	// add an ingress with the local dnsmasq domain (argocd.k8s-bench.local)
 	host := "argocd.k8s-bench.local"
 	global["domain"] = host
-	config["params"] = map[string]interface{}{
+	configs["params"] = map[string]interface{}{
 		"server.insecure": "true",
 	}
 
 	// configure access without login
-	config["cm"] = map[string]interface{}{
+	configs["cm"] = map[string]interface{}{
 		"users.anonymous.enabled": "true",
 	}
-	config["rbac"] = map[string]interface{}{
+	configs["rbac"] = map[string]interface{}{
 		"policy.default": "role:admin",
 	}
 
@@ -90,7 +91,7 @@ func (c *Client) InstallOrUpgradeArgoCD(mounts []RepoMount) (string, error) {
 	}
 
 	values["global"] = global
-	values["configs"] = config
+	values["configs"] = configs
 	values["repoServer"] = repoServer
 	values["server"] = server
 
@@ -100,7 +101,11 @@ func (c *Client) InstallOrUpgradeArgoCD(mounts []RepoMount) (string, error) {
 		settings.KubeConfig = c.Kubeconfig
 	}
 	var cfg action.Configuration
-	if err := cfg.Init(settings.RESTClientGetter(), namespace, os.Getenv("HELM_DRIVER"), stdlog.Printf); err != nil {
+	var helmOutput = func(format string, v ...interface{}) { /* no-op */ }
+	if config.CliConfig.Debug {
+		helmOutput = stdlog.Printf
+	}
+	if err := cfg.Init(settings.RESTClientGetter(), namespace, os.Getenv("HELM_DRIVER"), helmOutput); err != nil {
 		return "", fmt.Errorf("failed to init helm configuration: %w", err)
 	}
 

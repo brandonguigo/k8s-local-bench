@@ -14,6 +14,7 @@ import (
 
 	kindsvc "k8s-local-bench/utils/kind"
 	kindcfg "k8s-local-bench/utils/kind/config"
+	"k8s-local-bench/utils/kubectl"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -99,7 +100,14 @@ func createCluster(cmd *cobra.Command, args []string) {
 
 	// display cluster infos
 	argoCDUrl := "argocd" + "." + domain
-	displayClusterInfo(clusterName, argoCDUrl)
+	headlampUrl := "headlamp" + "." + domain
+	kubectlClient := kubectl.NewClient(&kubeconfigPath, nil)
+	headlampSecret, err := kubectlClient.CreateToken(context.TODO(), "headlamp", "monitoring")
+	if err != nil {
+		log.Error().Err(err).Msg("failed creating headlamp token")
+	}
+
+	displayClusterInfo(clusterName, kubeconfigPath, argoCDUrl, headlampUrl, headlampSecret)
 
 	log.Info().Msg("local k8s cluster creation process completed")
 }
