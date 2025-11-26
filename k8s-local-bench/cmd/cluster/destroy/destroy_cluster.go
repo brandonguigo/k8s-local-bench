@@ -1,7 +1,6 @@
 package destroy
 
 import (
-	"os/exec"
 	"strings"
 	"time"
 
@@ -45,11 +44,11 @@ func destroyCluster(cmd *cobra.Command, args []string) {
 		log.Info().Str("name", clusterName).Msg("kind cluster deletion invoked")
 	}
 
-	// attempt to stop any running cloud-provider-kind process (best-effort)
-	if out, err := exec.Command("pkill", "-f", "sudo cloud-provider-kind").CombinedOutput(); err != nil {
-		log.Debug().Err(err).Str("output", string(out)).Msg("pkill for cloud-provider-kind returned error (may be fine if not running)")
+	// stop the load balancer provider if running
+	if err := kindsvcClient.StopLoadBalancer(clusterName); err != nil {
+		log.Warn().Err(err).Str("name", clusterName).Msg("failed to stop cloud-provider-kind load balancer (it may not have been running)")
 	} else {
-		log.Info().Msg("stopped cloud-provider-kind processes")
+		log.Info().Str("name", clusterName).Msg("stopped cloud-provider-kind load balancer (if it was running)")
 	}
 
 	// make sure the cluster is stopped/deleted: poll `kind get clusters` briefly

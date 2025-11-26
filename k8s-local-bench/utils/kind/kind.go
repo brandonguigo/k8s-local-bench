@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"strconv"
 	"syscall"
 
 	"github.com/rs/zerolog/log"
@@ -193,5 +194,66 @@ func (c *Client) StartLoadBalancer(clusterName string, background bool) error {
 	log.Info().Str("log", logPath).Int("pid", cmd.Process.Pid).Msg("cloud-provider-kind started in background")
 	// close our file handle; child keeps file descriptor
 	_ = f.Close()
+	return nil
+}
+
+// StopLoadBalancer stops a previously-started background cloud-provider-kind
+// process by reading the pid file, attempting to kill the process (using
+// sudo if necessary), and removing the `.cloud-provider-kind` directory.
+func (c *Client) StopLoadBalancer(clusterName string) error {
+	clusterDirPath := filepath.Join(config.CliConfig.Directory, "clusters", clusterName, ".cloud-provider-kind")
+	pidPath := filepath.Join(clusterDirPath, ".pid")
+
+	data, err := os.ReadFile(pidPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No pid file; try to remove directory anyway
+			if err := os.RemoveAll(clusterDirPath); err != nil {
+				return fmt.Errorf("failed to remove cloud-provider-kind directory: %w", err)
+			}
+			log.Info().Str("clusterDir", clusterDirPath).Msg("removed cloud-provider-kind directory (no pid file)")
+			return nil
+		}
+		return fmt.Errorf("failed to read pid file: %w", err)
+	}
+
+	pidStr := strings.TrimSpace(string(data))
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		return fmt.Errorf("invalid pid in file %s: %w", pidPath, err)
+	}
+
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		log.Error().Err(err).Int("pid", pid).Msg("failed to find process")
+	} else {
+		// Try graceful termination first
+		if err := proc.Signal(syscall.SIGTERM); err != nil {
+			log.Warn().Err(err).Int("pid", pid).Msg("failed to send SIGTERM to process; attempting alternatives")
+			// Try using sudo kill if available (process may be owned by root)
+			if isInstalled("sudo") {
+				out, e := runCmd("sudo", "kill", "-TERM", pidStr)
+				if e != nil {
+					log.Error().Err(e).Str("output", out).Msg("sudo kill -TERM failed; trying sudo kill -KILL")
+					out2, e2 := runCmd("sudo", "kill", "-KILL", pidStr)
+					if e2 != nil {
+						log.Error().Err(e2).Str("output", out2).Msg("sudo kill -KILL failed")
+						return fmt.Errorf("failed to kill process %d: %w", pid, e2)
+					}
+				}
+			} else {
+				// Fall back to os.Kill
+				if e := proc.Kill(); e != nil {
+					return fmt.Errorf("failed to kill process %d: %w", pid, e)
+				}
+			}
+		}
+	}
+
+	// remove the cluster-specific cloud-provider-kind directory
+	if err := os.RemoveAll(clusterDirPath); err != nil {
+		return fmt.Errorf("failed to remove cloud-provider-kind directory: %w", err)
+	}
+	log.Info().Str("clusterDir", clusterDirPath).Msg("stopped cloud-provider-kind and removed directory")
 	return nil
 }
