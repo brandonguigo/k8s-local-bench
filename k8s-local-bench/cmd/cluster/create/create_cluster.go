@@ -79,15 +79,22 @@ func createCluster(cmd *cobra.Command, args []string) {
 	// wait for ingress to be ready inside the `ingress` namespace, then get the only
 	// Service with type LoadBalancer (assumes the chart installs a single ingress
 	// controller service of type LoadBalancer).
-	{
-		ingressNs := "ingress"
+	ingressNs := "ingress"
 
-		svc, err := waitForLoadBalancerService(context.Background(), kubeconfigPath, ingressNs, 3*time.Minute, 5*time.Second)
-		if err != nil {
-			log.Warn().Err(err).Msg("did not find LoadBalancer service for ingress")
-		} else {
-			log.Info().Str("service", svc.Name).Str("namespace", svc.Namespace).Msg("found LoadBalancer service for ingress")
-		}
+	svc, err := waitForLoadBalancerService(context.Background(), kubeconfigPath, ingressNs, 3*time.Minute, 5*time.Second)
+	if err != nil {
+		log.Warn().Err(err).Msg("did not find LoadBalancer service for ingress")
+	} else {
+		log.Info().Str("service", svc.Name).Str("namespace", svc.Namespace).Msg("found LoadBalancer service for ingress")
+	}
+
+	// update the dnsmasq confifuration
+	domain := "k8s-bench.local"
+	err = updateDnsmasqConfig(cmd, domain, svc.ExternalIPs[0])
+	if err != nil {
+		log.Error().Err(err).Msg("failed updating dnsmasq configuration")
+	} else {
+		log.Info().Str("domain", domain).Str("ip", svc.ExternalIPs[0]).Msg("updated dnsmasq configuration")
 	}
 
 	log.Info().Msg("local k8s cluster creation process completed")

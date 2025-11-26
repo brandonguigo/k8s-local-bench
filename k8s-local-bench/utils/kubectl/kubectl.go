@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Client configures how kubectl is invoked. Optional fields may be nil.
@@ -159,6 +161,9 @@ func (c *Client) ListServices(ctx context.Context, namespace string, svcType *st
 		return nil, fmt.Errorf("kubectl get services failed: %w", err)
 	}
 
+	log.Info().Str("cmd", strings.Join(cmd.Args, " ")).Msg("kubectl command executed")
+	log.Info().Str("output", string(out)).Msg("kubectl command output")
+
 	var raw struct {
 		Items []struct {
 			Metadata struct {
@@ -176,6 +181,13 @@ func (c *Client) ListServices(ctx context.Context, namespace string, svcType *st
 					Protocol   string      `json:"protocol"`
 				} `json:"ports"`
 			} `json:"spec"`
+			Status struct {
+				LoadBalancer struct {
+					Ingress []struct {
+						IP string `json:"ip"`
+					} `json:"ingress"`
+				} `json:"loadBalancer"`
+			} `json:"status"`
 		} `json:"items"`
 	}
 
@@ -189,11 +201,20 @@ func (c *Client) ListServices(ctx context.Context, namespace string, svcType *st
 			continue
 		}
 		s := Service{
-			Name:        it.Metadata.Name,
-			Namespace:   it.Metadata.Namespace,
-			Type:        it.Spec.Type,
-			ClusterIP:   it.Spec.ClusterIP,
-			ExternalIPs: it.Spec.ExternalIPs,
+			Name:      it.Metadata.Name,
+			Namespace: it.Metadata.Namespace,
+			Type:      it.Spec.Type,
+			ClusterIP: it.Spec.ClusterIP,
+		}
+		// start with spec.externalIPs (may be nil)
+		if len(it.Spec.ExternalIPs) > 0 {
+			s.ExternalIPs = append(s.ExternalIPs, it.Spec.ExternalIPs...)
+		}
+		// include any loadBalancer ingress IPs (status.loadBalancer.ingress[].ip)
+		for _, ing := range it.Status.LoadBalancer.Ingress {
+			if ing.IP != "" {
+				s.ExternalIPs = append(s.ExternalIPs, ing.IP)
+			}
 		}
 		for _, p := range it.Spec.Ports {
 			s.Ports = append(s.Ports, ServicePort{Name: p.Name, Port: p.Port, Protocol: p.Protocol})

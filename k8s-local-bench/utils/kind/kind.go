@@ -2,6 +2,7 @@ package kind
 
 import (
 	"fmt"
+	"k8s-local-bench/config"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -107,6 +108,8 @@ func (c *Client) Delete(name string) error {
 // a temp file; the function returns immediately while the process continues
 // running after the CLI exits.
 func (c *Client) StartLoadBalancer(clusterName string, background bool) error {
+	clusterDirPath := filepath.Join(config.CliConfig.Directory, "clusters", clusterName, ".cloud-provider-kind")
+
 	if err := ensureCloudProviderKindInstalled(); err != nil {
 		return err
 	}
@@ -149,8 +152,11 @@ func (c *Client) StartLoadBalancer(clusterName string, background bool) error {
 		}
 	}
 
-	// background: start detached with logs redirected to a temp file
-	logPath := filepath.Join(os.TempDir(), fmt.Sprintf("cloud-provider-kind-%s.log", clusterName))
+	// background: start detached with logs redirected to a log file next to pid
+	if err := os.MkdirAll(clusterDirPath, 0o755); err != nil {
+		return fmt.Errorf("failed to create cluster directory for logs/pid: %w", err)
+	}
+	logPath := filepath.Join(clusterDirPath, ".log")
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
@@ -172,7 +178,18 @@ func (c *Client) StartLoadBalancer(clusterName string, background bool) error {
 		f.Close()
 		return fmt.Errorf("failed to start cloud-provider-kind: %w", err)
 	}
+
 	// we intentionally do not wait; process should keep running after exit
+	// write pid file so callers (delete) can find and kill the background process later
+	pidPath := filepath.Join(clusterDirPath, ".pid")
+	pidContent := fmt.Sprintf("%d\n", cmd.Process.Pid)
+	if err := os.WriteFile(pidPath, []byte(pidContent), 0o644); err != nil {
+		// log the error but continue; background process is running
+		log.Error().Err(err).Str("path", pidPath).Msg("failed to write pid file")
+	} else {
+		log.Info().Str("pid_file", pidPath).Msg("wrote cloud-provider-kind pid file")
+	}
+
 	log.Info().Str("log", logPath).Int("pid", cmd.Process.Pid).Msg("cloud-provider-kind started in background")
 	// close our file handle; child keeps file descriptor
 	_ = f.Close()

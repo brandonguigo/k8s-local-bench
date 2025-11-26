@@ -29,6 +29,12 @@ func (c *Client) EnsureDomainIP(ctx context.Context, domain, ip string) error {
 	if domain == "" {
 		return fmt.Errorf("domain must be provided")
 	}
+
+	// if domain does not start with a dot, add one
+	if !strings.HasPrefix(domain, ".") {
+		domain = "." + domain
+	}
+
 	if ip == "" {
 		return fmt.Errorf("ip must be provided")
 	}

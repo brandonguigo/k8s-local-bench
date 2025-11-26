@@ -38,7 +38,11 @@ func waitForLoadBalancerService(ctx context.Context, kubeConfig string, namespac
 				continue
 			}
 			if len(svcs) == 1 {
-				return &svcs[0], nil
+				// Only return when the single LoadBalancer service has at least one ExternalIP
+				if len(svcs[0].ExternalIPs) > 0 {
+					return &svcs[0], nil
+				}
+				// otherwise keep waiting until an ExternalIP is assigned
 			}
 			// otherwise keep waiting
 		}

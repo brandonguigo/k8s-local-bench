@@ -1,4 +1,4 @@
-{{ if .Values.addons.haproxy-ingress }}
+{{- if index .Values.addons "haproxy-ingress" -}}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
