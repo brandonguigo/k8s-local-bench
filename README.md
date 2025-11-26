@@ -23,7 +23,6 @@ See `docs/CLI.md` and `docs/commands/*` for more details.
 ### TODO
 
 - [ ] rename to project to localplane
-- [ ] update the documentation on all the new features / concepts + add a clead README with quickstart
 - [ ] automatically get the ingress ip (only load balancer service) + update dnsmasq.conf + restart
 - [ ] add mermaid diagrams explaining how it works
 - [ ] add some spinners and logs to the create command

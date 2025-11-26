@@ -2,6 +2,7 @@ package create
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -74,6 +75,20 @@ func createCluster(cmd *cobra.Command, args []string) {
 
 	// apply bootstrap manifests
 	applyBootstrapManifests(cmd, kubeconfigPath, base)
+
+	// wait for ingress to be ready inside the `ingress` namespace, then get the only
+	// Service with type LoadBalancer (assumes the chart installs a single ingress
+	// controller service of type LoadBalancer).
+	{
+		ingressNs := "ingress"
+
+		svc, err := waitForLoadBalancerService(context.Background(), kubeconfigPath, ingressNs, 3*time.Minute, 5*time.Second)
+		if err != nil {
+			log.Warn().Err(err).Msg("did not find LoadBalancer service for ingress")
+		} else {
+			log.Info().Str("service", svc.Name).Str("namespace", svc.Namespace).Msg("found LoadBalancer service for ingress")
+		}
+	}
 
 	log.Info().Msg("local k8s cluster creation process completed")
 }
