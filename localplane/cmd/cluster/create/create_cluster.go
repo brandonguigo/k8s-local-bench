@@ -139,7 +139,7 @@ func createCluster(cmd *cobra.Command, args []string) {
 	s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 	s.Prefix = "Updating dnsmasq configuration... "
 	s.Start()
-	domain := "k8s-bench.local"
+	domain := "localplane"
 	err = updateDnsmasqConfig(cmd, domain, svc.ExternalIPs[0])
 	s.Stop()
 	if err != nil {

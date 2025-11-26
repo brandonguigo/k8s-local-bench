@@ -70,7 +70,7 @@ func (c *Client) InstallOrUpgradeArgoCD(mounts []RepoMount) (string, error) {
 	repoServer["volumeMounts"] = vms
 
 	// add an ingress with the local dnsmasq domain (argocd.k8s-bench.local)
-	host := "argocd.k8s-bench.local"
+	host := "argocd.localplane"
 	global["domain"] = host
 	configs["params"] = map[string]interface{}{
 		"server.insecure": "true",
